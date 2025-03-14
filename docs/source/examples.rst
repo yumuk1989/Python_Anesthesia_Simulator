@@ -19,3 +19,4 @@ These notebooks demonstrate the use of the toolbox for different applications.
    /examples/blood_loss_simu
    /examples/check_vitalDB_model
    /examples/Merigo_PID
+   /examples/TCI_example
