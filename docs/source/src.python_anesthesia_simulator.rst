@@ -39,3 +39,12 @@ Metrics module
    :undoc-members:
    :show-inheritance:
 
+TCI controller module
+=====================
+.. automodule:: src.python_anesthesia_simulator.tci_control
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+
+
