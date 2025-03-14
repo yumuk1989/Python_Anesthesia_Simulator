@@ -1,11 +1,6 @@
-"""
-Created on Wed Feb  8 16:11:17 2023
-
-@author: aubouinb
-"""
 import numpy as np
-import matplotlib.pyplot as plt
-import python_anesthesia_simulator as pas
+
+from .pk_models import CompartmentModel
 
 
 class TCIController():
@@ -100,11 +95,11 @@ class TCIController():
         elif gender == 0:  # femme
             lbm = 1.07 * weight - 148 * (weight / height) ** 2
 
-        pk_model = pas.CompartmentModel(patient_info, lbm, drug_name, ts=sampling_time, model=model_used)
+        pk_model = CompartmentModel(patient_info, lbm, drug_name, ts=sampling_time, model=model_used)
         self.Ad = pk_model.discretize_sys.A[:4, :4]
         self.Bd = pk_model.discretize_sys.B[:4]
 
-        pk_model = pas.CompartmentModel(patient_info, lbm, drug_name, ts=control_time, model=model_used)
+        pk_model = CompartmentModel(patient_info, lbm, drug_name, ts=control_time, model=model_used)
         self.Ad_control = pk_model.discretize_sys.A[:4, :4]
         self.Bd_control = pk_model.discretize_sys.B[:4]
         # find the response to a 10s infusion
@@ -131,13 +126,6 @@ class TCIController():
         self.jpeak_0 = 0
         self.jpeak_1 = 0
         self.time = 0
-
-        # plot the response to a 10s infusion
-        if False:
-            plt.subplot(2, 1, 1)
-            plt.plot(self.Ce, label='Ce')
-            plt.grid()
-            plt.show()
 
     def one_step(self, target: float = 0) -> float:
         """Implement one_step of the model. It must be called each sampling time.

@@ -41,6 +41,7 @@ Metrics module
 
 TCI controller module
 =====================
+
 .. automodule:: src.python_anesthesia_simulator.tci_control
    :members:
    :undoc-members:
