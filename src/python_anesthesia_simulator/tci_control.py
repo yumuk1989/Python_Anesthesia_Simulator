@@ -60,9 +60,7 @@ class TCIController():
 
     References
     ----------
-    .. [Shafer1992]  S. L. Shafer and K. M. Gregg, “Algorithms to rapidly achieve and maintain stable drug concentrations at the site of drug effect with a computer-controlled infusion pump,”
-    Journal of Pharmacokinetics and Biopharmaceutics, vol. 20, no. 2, pp. 147–169,
-    Apr. 1992, doi: 10.1007/BF01070999.
+    .. [Shafer1992]  S. L. Shafer and K. M. Gregg, “Algorithms to rapidly achieve and maintain stable drug concentrations at the site of drug effect with a computer-controlled infusion pump,”0 Journal of Pharmacokinetics and Biopharmaceutics, vol. 20, no. 2, pp. 147–169, Apr. 1992, doi: 10.1007/BF01070999.
 
     """
 
