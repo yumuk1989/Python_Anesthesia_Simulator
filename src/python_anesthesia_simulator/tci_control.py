@@ -9,11 +9,8 @@ import python_anesthesia_simulator as pas
 
 
 class TCIController():
-    """Implement the control algorithm coded in the TCI device Orchestra PRIMUS, from paper:
-    S. L. Shafer and K. M. Gregg, “Algorithms to rapidly achieve and maintain stable drug
-    concentrations at the site of drug effect with a computer-controlled infusion pump,”
-    Journal of Pharmacokinetics and Biopharmaceutics, vol. 20, no. 2, pp. 147–169,
-    Apr. 1992, doi: 10.1007/BF01070999.
+    """Implement the control algorithm coded in the TCI device Orchestra PRIMUS, from [Shafer1992]_.
+
 
     Warning: This code has been retro enginering and does not came from an official source.
 
@@ -65,6 +62,14 @@ class TCIController():
         Array to store the patient state at simulation time.
     target : float
         Target concentration.
+
+    References
+    ----------
+    .. [Shafer1992]  S. L. Shafer and K. M. Gregg, “Algorithms to rapidly achieve and maintain stable drug
+    concentrations at the site of drug effect with a computer-controlled infusion pump,”
+    Journal of Pharmacokinetics and Biopharmaceutics, vol. 20, no. 2, pp. 147–169,
+    Apr. 1992, doi: 10.1007/BF01070999.
+
     """
 
     def __init__(self, patient_info: list, drug_name: str, model_used: str,
