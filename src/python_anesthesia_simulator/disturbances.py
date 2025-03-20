@@ -81,7 +81,7 @@ def compute_disturbances(time: float, dist_profil: str = 'realistic',
                                   [30,    0,  0,   0]])
 
     elif dist_profil == 'null':
-        return 0, 0, 0
+        return [0, 0, 0]
 
     dist_bis = np.interp(time/60, Disturb_point[:, 0], Disturb_point[:, 1])
     dist_map = np.interp(time/60, Disturb_point[:, 0], Disturb_point[:, 2])
