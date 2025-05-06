@@ -564,7 +564,7 @@ class Patient:
                         'x_remi_1', 'x_remi_2', 'x_remi_3', 'x_remi_4', 'x_remi_5',  # x_PK_remi
                         'x_nore', 'blood_volume']  # nore concentration and blood volume
 
-        self.dataframe = pd.DataFrame(columns=column_names)
+        self.dataframe = pd.DataFrame(columns=column_names, dtype=float)
 
     def save_data(self, inputs: list = [0, 0, 0]):
         r"""Save all current intern variable as a new line in self.dataframe."""
@@ -581,7 +581,10 @@ class Patient:
         new_line.update(line_x_propo)
         new_line.update(line_x_remi)
 
-        self.dataframe = pd.concat((self.dataframe, pd.DataFrame(new_line, index=[1])), ignore_index=True)
+        self.dataframe = pd.concat(
+            [df for df in (self.dataframe, pd.DataFrame(new_line, index=[1], dtype=float)) if not df.empty],
+            ignore_index=True
+        )
 
     def full_sim(self, u_propo: Optional[np.array] = None, u_remi: Optional[np.array] = None, u_nore: Optional[np.array] = None,
                  x0_propo: Optional[np.array] = None, x0_remi: Optional[np.array] = None, x0_nore: Optional[np.array] = None) -> pd.DataFrame:

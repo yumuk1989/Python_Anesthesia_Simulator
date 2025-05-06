@@ -84,19 +84,19 @@ def compute_control_metrics(time: list, bis: list, phase: str = 'maintenance',
 
     elif phase == 'maintenance':
         # find start step index
-        index_start = np.where(np.array(time) == start_step)[0][0]
+        index_start = np.where(np.array(time) == start_step)[0][0]+1
         index_end = np.where(np.array(time) == end_step)[0][0]
 
         BIS_NADIRp = min(bis[index_start:index_end])
         BIS_NADIRn = max(bis[index_end:])
         TTp, TTn = np.nan, np.nan
         for j in range(index_start, index_end):
-            if bis[j] < 55:
+            if bis[j+1] < 55:
                 TTp = (time[j]-start_step)/60
                 break
 
         for j in range(index_end, len(bis)):
-            if bis[j] > 45:
+            if bis[j+1] > 45:
                 TTn = (time[j]-end_step)/60
                 break
         df = pd.DataFrame([{'TTp': TTp,
@@ -175,7 +175,7 @@ def intergal_absolut_error(time: list, bis: list, bis_target: float = 50):
         Integral of the absolute error.
 
     """
-    iae = np.trapz(np.abs(np.array(bis)-bis_target), time)
+    iae = np.trapezoid(np.abs(np.array(bis)-bis_target), time)
     return iae
 
 
