@@ -31,7 +31,12 @@ release = '0.0.4'
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
-extensions = ['numpydoc', 'sphinx.ext.autodoc', 'nbsphinx']
+extensions = [
+    'numpydoc',
+    'sphinx.ext.autodoc',
+    'sphinx.ext.autosummary',
+    'nbsphinx'
+]
 
 # list of autodoc directive flags that should be automatically applied
 # to all autodoc directives.
@@ -70,3 +75,5 @@ numpydoc_show_class_members = False
 # If true, the current module name will be prepended to all description
 # unit titles (such as .. function::).
 add_module_names = False
+
+autosummary_generate = True

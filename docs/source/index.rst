@@ -17,14 +17,12 @@ the evaluation of the controller's performances. This web page provides a brief 
 and its capabilities. For more details, please refer to the following paper: https://joss.theoj.org/papers/10.21105/joss.05480.
 If you are using PAS for your research, please cite the previous paper.
 
-
-
 .. toctree::
    :maxdepth: 2
    :caption: Contents:
 
    intro
-   src.python_anesthesia_simulator
+   python_anesthesia_simulator
    examples
 
 
