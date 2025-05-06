@@ -30,3 +30,12 @@ sphinx:
 python:
    install:
    - requirements: docs/requirements.txt
+
+projects:
+  - name: Python Anesthesia Simulator doc
+    repository:
+      url: https://github.com/AnesthesiaSimulation/Python_Anesthesia_Simulator
+      vcs: git
+      type: github
+      # Important: set the branch
+      version: main
