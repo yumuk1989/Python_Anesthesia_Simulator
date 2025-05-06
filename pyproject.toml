@@ -12,13 +12,13 @@ authors = [
 description = """Anesthesia simulator: modellize the effect of drugs (Propofol, Remifentanil, Norepinephrine) \
                  during general anesthesia. Specially build for control design."""
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.12"
 dependencies=[
-    "numpy",
+    "numpy>=2.2.5",
     "control==0.9.4",
-    "matplotlib",
-    "casadi>=3.6.3",
-    "pandas"
+    "matplotlib>=3.10.1 ",
+    "casadi>=3.7.0",
+    "pandas>=2.2.3"
 ]
 license = { text = "GNU General Public License v3 (GPLv3)" }
 classifiers = [
@@ -28,5 +28,5 @@ classifiers = [
 ]
 
 [project.urls]
-"Homepage" = "https://github.com/BobAubouin/Python_Anesthesia_Simulator"
-"Bug Tracker" = "https://github.com/BobAubouin/Python_Anesthesia_Simulator/issues"
+"Homepage" = "https://github.com/AnesthesiaSimulation/Python_Anesthesia_Simulator"
+"Bug Tracker" = "https://github.com/AnesthesiaSimulation/Python_Anesthesia_Simulator/issues"
