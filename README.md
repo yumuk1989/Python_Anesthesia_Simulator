@@ -44,8 +44,6 @@ If you want to contact me for any reason, I'm available by [mail](bob.aubouin-pa
     ├─── src
     |   ├─── python_anesthesia_simulator           # Simulator library + metrics function
     |
-    ├── paper              # markdown paper for JOSS submition
-    |
     ├── tests              # files for testing the package
     |
     ├── docs               # files for generating the docs
