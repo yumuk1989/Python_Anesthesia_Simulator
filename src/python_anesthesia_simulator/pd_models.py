@@ -21,17 +21,19 @@ class BIS_model:
     Parameters
     ----------
     hill_model : str, optional
-        'Bouillon' [Bouillon2004]_ and 'Aubouin' [Aubouin2023] are available.
+        'Bouillon' [Bouillon2004]_ is available.
         Ignored if hill_param is specified. Default is 'Bouilllon'.
     hill_param : list, optional
         Parameter of the Hill model (Propo Remi interaction)
         list [c50p_BIS, c50r_BIS, gamma_BIS, beta_BIS, E0_BIS, Emax_BIS]:
-            - c50p_BIS : Concentration at half effect for propofol effect on BIS (µg/mL)
-            - c50r_BIS : Concentration at half effect for remifentanil effect on BIS (ng/mL)
-            - gamma_BIS : slope coefficient for the BIS  model,
-            - beta_BIS : interaction coefficient for the BIS model,
-            - E0_BIS : initial BIS,
-            - Emax_BIS : max effect of the drugs on BIS.
+
+        - **c50p_BIS**: Concentration at half effect for propofol effect on BIS (µg/mL)
+        - **c50r_BIS**: Concentration at half effect for remifentanil effect on BIS (ng/mL)
+        - **gamma_BIS**: slope coefficient for the BIS  model,
+        - **beta_BIS**: interaction coefficient for the BIS model,
+        - **E0_BIS**: initial BIS,
+        - **Emax_BIS**: max effect of the drugs on BIS.
+
         The default is None.
     random : bool, optional
         Add uncertainties in the parameters. Ignored if Hill_cruv is specified. The default is False.
@@ -64,8 +66,6 @@ class BIS_model:
             Regarding Hypnosis, Tolerance of Laryngoscopy, Bispectral Index, and Electroencephalographic
             Approximate Entropy,” Anesthesiology, vol. 100, no. 6, pp. 1353–1372, Jun. 2004,
             doi: 10.1097/00000542-200406000-00006.
-    .. [Aubouin2023]  A. Aubouin et al., “Comparison of Multiple Kalman Filter and Moving Horizon
-            Estimator for the Anesthesia Process” draft 2023.
 
     """
 

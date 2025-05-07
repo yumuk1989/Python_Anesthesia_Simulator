@@ -382,6 +382,7 @@ class Patient:
         Solve the optimization problem:
 
         .. math:: J = (bis - bis_{target})^2
+
         Where :math:`bis` is the BIS computed from the pharmacodynamic model.
         And with the constraints:
 

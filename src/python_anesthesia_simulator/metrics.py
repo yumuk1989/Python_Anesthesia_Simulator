@@ -25,28 +25,17 @@ def compute_control_metrics(time: list, bis: list, phase: str = 'maintenance',
     Returns
     -------
     df : pd.DataFrame
-        Dataframe containing the computed metrics:
-        TT : float
-            Observed time-to-target (in minute) required for reaching first time the target interval of [55,45] BIS values.
-        BIS_NADIR: float
-            for "induction" or "total" phase. The lowest observed BIS value during induction phase.
-        ST10: float
-            for "induction" or "total" phase. Settling time (in minute) on the reference BIS value,
-            defined within ± 5BIS(i.e., between 45 and 55 BIS)and stay within this BIS range.
-        ST20: float
-            for "induction" or "total" phase. Settling time (in minute) on the reference BIS value,
-            defined within ± 10BIS(i.e., between 40 and 60 BIS) and stay within this BIS range.
-        US: float
-            for "induction" or "total" phase. Undershoot, defined as the BIS value that exceeds the
-            limit of the defined BIS interval, namely, the 45 BIS value.
-        TTp : float
-            Time to target (in minute) after the positive step disturbance.
-        BIS_NADIRp: float
-            for "maintenance" or "total" phase. Minimum BIS vamue after the positive step disturbance.
-        TTpn: float
-            for "maintenance" or "total" phase. Time to target (in minute) after the negative step disturbance.
-        BIS_NADIRn: float
-            for "maintenance" or "total" phase. Maximum BIS vamue after the negative step disturbance.
+        DataFrame containing the computed metrics:
+
+        - **TT** (*float*): Observed time-to-target (in minutes) required for reaching the target interval [55, 45] BIS.
+        - **BIS_NADIR** (*float*): For "induction" or "total" phase. Lowest observed BIS during induction.
+        - **ST10** (*float*): For "induction" or "total" phase. Settling time (in minutes) within ±5 BIS (45–55 BIS range).
+        - **ST20** (*float*): For "induction" or "total" phase. Settling time (in minutes) within ±10 BIS (40–60 BIS range).
+        - **US** (*float*): For "induction" or "total" phase. Undershoot below the lower BIS limit (45 BIS).
+        - **TTp** (*float*): Time-to-target (in minutes) after a positive step disturbance.
+        - **BIS_NADIRp** (*float*): For "maintenance" or "total" phase. Minimum BIS after a positive disturbance.
+        - **TTpn** (*float*): For "maintenance" or "total" phase. Time-to-target after a negative disturbance.
+        - **BIS_NADIRn** (*float*): For "maintenance" or "total" phase. Maximum BIS after a negative disturbance.
 
     References
     ----------
@@ -195,16 +184,13 @@ def new_metrics_induction(time: list, bis: list):
     -------
     df : pd.DataFrame
         Dataframe containing the computed metrics:
-        IAE : float
-            Integral of the absolute error.
-        Sleep_Time : float
-            Time to reach BIS < 60 and stay below 60 (minutes).
-        Low BIS time : float
-            Time passed with BIS < 40 (seconds).
-        Lowest BIS : float
-            Lowest BIS value.
-        Settling time : float
-            Time to reach BIS < 60 and stay within [40, 60] (minutes).
+
+        - **IAE** (*float*): Integral of the absolute error.
+        - **Sleep_Time** (*float*): Time to reach BIS < 60 and stay below 60 (minutes).
+        - **Low BIS time** (*float*): Time passed with BIS < 40 (seconds).
+        - **Lowest BIS** (*float*): Lowest BIS value.
+        - **Settling time** (*float*): Time to reach BIS < 60 and stay within [40, 60] (minutes).
+
     """
     results = {}
     # Integral of the absolute error
@@ -257,14 +243,13 @@ def new_metrics_maintenance(time: list, bis: list):
     -------
     df : pd.DataFrame
         Dataframe containing the computed metrics:
-        IAE : float
-            Integral of the absolute error.
-        Time out of range : float
-            Time passed with BIS out of [40, 60] (seconds).
-        Lowest BIS : float
-            Lowest BIS value.
-        Highest BIS : float
-            Highest BIS value.
+
+        - **IAE** (*float*): Integral of the absolute error.
+        - **Time out of range** (*float*): Time passed with BIS out of [40, 60] (seconds).
+        - **Lowest BIS** (*float*): Lowest BIS value.
+        - **Highest BIS** (*float*): Highest BIS value.
+
+
     """
     IAE = intergal_absolut_error(time, bis)
     results = {}
