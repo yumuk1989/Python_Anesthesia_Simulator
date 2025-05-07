@@ -17,12 +17,11 @@ Use pip to install the package:
     pip install python-anesthesia-simulator
 ```
 
-The package can be imported in your python script with:
+Or, to get the latest version, clone this repository and install the package with:
 
 ```python
-    import python_anesthesia_simulator as pas
+    pip install .
 ```
-
 ## Citation
 
 To cite PAS in your work, cite this paper:
@@ -33,10 +32,7 @@ Aubouin-Pairault et al., (2023). PAS: a Python Anesthesia Simulator for drug con
 
 ## Guidelines
 
-- To report a bug or request a feature please open an issue.
-- To contribute, you can fork the repository and ask for a pull request.
-
-If you want to contact me for any reason, I'm available by [mail](bob.aubouin-pairault@gipsa-lab.fr).
+Contribution and discussions are welcomed! Please feel free to use the [issue tracker](https://github.com/AnesthesiaSimulation/Python_Anesthesia_Simulator/issues) ensuring that you follow our [contribution guide](https://python-anesthesia-simulator-doc.readthedocs.io/latest/contributing.html) and our [Code of Conduct](./CODE_OF_CONDUCT.md).
 
 ## Structure
 
