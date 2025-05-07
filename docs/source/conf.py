@@ -23,7 +23,7 @@ copyright = '2023, Bob Aubouin-Pairault'
 author = 'Bob Aubouin-Pairault'
 
 # The full version, including alpha/beta/rc tags
-release = '0.0.4'
+# release = '1.0.0'
 
 
 # -- General configuration ---------------------------------------------------
@@ -35,7 +35,8 @@ extensions = [
     'numpydoc',
     'sphinx.ext.autodoc',
     'sphinx.ext.autosummary',
-    'nbsphinx'
+    'nbsphinx',
+    'myst_parser',
 ]
 
 # list of autodoc directive flags that should be automatically applied

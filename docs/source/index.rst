@@ -24,6 +24,7 @@ If you are using PAS for your research, please cite the previous paper.
    intro
    python_anesthesia_simulator
    examples
+   contributing
 
 
 
