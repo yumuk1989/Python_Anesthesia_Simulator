@@ -1,11 +1,3 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""
-Created on Thu Feb  2 16:32:20 2023
-
-@author: aubouinb
-"""
-# %% Import
 import matplotlib.pyplot as plt
 from python_anesthesia_simulator import simulator
 
@@ -84,17 +76,17 @@ index_end_bleeding = int(12*60/ts)
 index_end_transfusion = int(56*60/ts)
 
 
-# if bleeding is not stopped, BIS, MAP and CO should decrease, and TOL should increase
-assert George.dataframe['BIS'][0] > George.dataframe['BIS'][index_end_bleeding]
-assert George.dataframe['MAP'][0] > George.dataframe['MAP'][index_end_bleeding]
-assert George.dataframe['CO'][0] > George.dataframe['CO'][index_end_bleeding]
-assert George.dataframe['TOL'][0] < George.dataframe['TOL'][index_end_bleeding]
-
-# if transfusion is not stopped, BIS, MAP and CO should increase, and TOL should decrease
-assert George.dataframe['BIS'][index_end_bleeding] < George.dataframe['BIS'][index_end_transfusion]
-assert George.dataframe['MAP'][index_end_bleeding] < George.dataframe['MAP'][index_end_transfusion]
-assert George.dataframe['CO'][index_end_bleeding] < George.dataframe['CO'][index_end_transfusion]
-assert George.dataframe['TOL'][index_end_bleeding] > George.dataframe['TOL'][index_end_transfusion]
+def test_bleeding_effect():
+    """if bleeding is not stopped, BIS, MAP and CO should decrease, and TOL should increase."""
+    assert George.dataframe['BIS'][0] > George.dataframe['BIS'][index_end_bleeding]
+    assert George.dataframe['MAP'][0] > George.dataframe['MAP'][index_end_bleeding]
+    assert George.dataframe['CO'][0] > George.dataframe['CO'][index_end_bleeding]
+    assert George.dataframe['TOL'][0] < George.dataframe['TOL'][index_end_bleeding]
 
 
-print('test ok')
+def test_stop_bleeding_effect():
+    """ if transfusion is not stopped, BIS, MAP and CO should increase, and TOL should decrease."""
+    assert George.dataframe['BIS'][index_end_bleeding] < George.dataframe['BIS'][index_end_transfusion]
+    assert George.dataframe['MAP'][index_end_bleeding] < George.dataframe['MAP'][index_end_transfusion]
+    assert George.dataframe['CO'][index_end_bleeding] < George.dataframe['CO'][index_end_transfusion]
+    assert George.dataframe['TOL'][index_end_bleeding] > George.dataframe['TOL'][index_end_transfusion]

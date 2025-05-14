@@ -1,9 +1,3 @@
-"""
-Test file to debug Compartments system, disturbances and metrics.
-
-@author: aubouinb
-"""
-
 import control
 import numpy as np
 import matplotlib.pyplot as plt
@@ -49,9 +43,9 @@ uP, uR = 0.13, 0.5
 start_step = 20 * 60
 end_step = 30 * 60
 x = np.zeros((11, N_simu+1))
-George_1.save_data([0, 0, 0])
-George_2.save_data([0, 0, 0])
-George_3.save_data([0, 0, 0])
+# George_1.save_data([0, 0, 0])
+# George_2.save_data([0, 0, 0])
+# George_3.save_data([0, 0, 0])
 for index in range(N_simu):
     Dist_1 = disturbances.compute_disturbances(index*ts, dist_profil='realistic')
     George_1.one_step(uP, uR, dist=Dist_1, noise=False)
@@ -120,60 +114,66 @@ if __name__ == '__main__':
 
 # %% metrics
 
-TT_1, BIS_NADIR_1, ST10_1, ST20_1, US_1 = metrics.compute_control_metrics(George_1.dataframe.loc[:10*60/ts, 'Time'],
-                                                                          George_1.dataframe.loc[:10*60/ts, 'BIS'],
-                                                                          phase='induction')
-TT_2, BIS_NADIR_2, ST10_2, ST20_2, US_2 = metrics.compute_control_metrics(George_2.dataframe.loc[:10*60/ts, 'Time'],
-                                                                          George_2.dataframe.loc[:10*60/ts, 'BIS'],
-                                                                          phase='induction')
-data_3 = metrics.compute_control_metrics(George_3.dataframe['Time'], George_3.dataframe['BIS'], phase='total',
-                                         start_step=start_step, end_step=end_step)
+metric_1 = metrics.compute_control_metrics(
+    George_1.dataframe.loc[:10*60/ts, 'Time'],
+    George_1.dataframe.loc[:10*60/ts, 'BIS'],
+    phase='induction'
+)
+metric_2 = metrics.compute_control_metrics(
+    George_2.dataframe.loc[:10*60/ts, 'Time'],
+    George_2.dataframe.loc[:10*60/ts, 'BIS'],
+    phase='induction'
+)
+metric_3 = metrics.compute_control_metrics(
+    George_3.dataframe['Time'],
+    George_3.dataframe['BIS'],
+    phase='total',
+    start_step=start_step,
+    end_step=end_step
+)
 
-TT_3, BIS_NADIR_3, ST10_3, ST20_3, US_3, TTp_3, BIS_NADIRp_3, TTn_3, BIS_NADIRn_3 = data_3
 
 # %% test
 
-# test if the simulation is correct
-assert np.allclose(George_1.dataframe['x_propo_1'], x[0, :])
-assert np.allclose(George_1.dataframe['x_propo_2'], x[1, :])
-assert np.allclose(George_1.dataframe['x_propo_3'], x[2, :])
-assert np.allclose(George_1.dataframe['x_propo_4'], x[3, :])
-assert np.allclose(George_1.dataframe['x_propo_5'], x[4, :])
-assert np.allclose(George_1.dataframe['x_propo_6'], x[5, :])
-assert np.allclose(George_1.dataframe['x_remi_1'], x[6, :])
-assert np.allclose(George_1.dataframe['x_remi_2'], x[7, :])
-assert np.allclose(George_1.dataframe['x_remi_3'], x[8, :])
-assert np.allclose(George_1.dataframe['x_remi_4'], x[9, :])
-assert np.allclose(George_1.dataframe['x_remi_5'], x[10, :])
+def test_dynamic_simulation():
+    assert np.allclose(George_1.dataframe['x_propo_1'], x[0, :])
+    assert np.allclose(George_1.dataframe['x_propo_2'], x[1, :])
+    assert np.allclose(George_1.dataframe['x_propo_3'], x[2, :])
+    assert np.allclose(George_1.dataframe['x_propo_4'], x[3, :])
+    assert np.allclose(George_1.dataframe['x_propo_5'], x[4, :])
+    assert np.allclose(George_1.dataframe['x_propo_6'], x[5, :])
+    assert np.allclose(George_1.dataframe['x_remi_1'], x[6, :])
+    assert np.allclose(George_1.dataframe['x_remi_2'], x[7, :])
+    assert np.allclose(George_1.dataframe['x_remi_3'], x[8, :])
+    assert np.allclose(George_1.dataframe['x_remi_4'], x[9, :])
+    assert np.allclose(George_1.dataframe['x_remi_5'], x[10, :])
 
-# test if the metrics are correct
-# No undershoot during induction
-assert BIS_NADIR_1 > 50
-assert BIS_NADIR_2 > 50
-assert BIS_NADIR_3 > 50
-assert np.allclose(US_1, 0.0)
-assert np.allclose(US_2, 0.0)
-assert np.allclose(US_3, 0.0)
 
-# Time to target equal to 9 minutes
-assert np.allclose(TT_1, 9)
-assert np.allclose(TT_2, 9)
-assert np.allclose(TT_3, 9)
+def test_metrics():
+    # No undershoot during induction
+    assert metric_1['BIS_NADIR'].iloc[0] > 50
+    assert metric_2['BIS_NADIR'].iloc[0] > 50
 
-# Settling time at 10% equal to 9 minutes
-assert np.allclose(ST10_1, 9)
-assert np.allclose(ST10_2, 9)
-assert np.allclose(ST10_3, 9)
+    assert np.allclose(metric_1['US'].iloc[0], 0.0)
+    assert np.allclose(metric_2['US'].iloc[0], 0.0)
 
-# Settling time at 20% equal to 6 minutes
-assert np.allclose(ST20_1, 6)
-assert np.allclose(ST20_2, 6)
-assert np.allclose(ST20_3, 6)
+    # Time to target equal to 9 minutes
+    assert np.allclose(metric_1['TT'].iloc[0], 9)
+    assert np.allclose(metric_2['TT'].iloc[0], 9)
+    assert np.allclose(metric_3['TT'].iloc[0], 9)
 
-# test maintenance phase
-assert np.allclose(TTp_3, 10)
-assert BIS_NADIRp_3 > 50
-assert np.isnan(TTn_3)
-assert BIS_NADIRn_3 < 50
+    # Settling time at 10% equal to 9 minutes
+    assert np.allclose(metric_1['ST10'].iloc[0], 9)
+    assert np.allclose(metric_2['ST10'].iloc[0], 9)
+    assert np.allclose(metric_3['ST10'].iloc[0], 9)
 
-print('test ok')
+    # Settling time at 20% equal to 6 minutes
+    assert np.allclose(metric_1['ST20'].iloc[0], 6)
+    assert np.allclose(metric_2['ST20'].iloc[0], 6)
+    assert np.allclose(metric_3['ST20'].iloc[0], 6)
+
+    # test maintenance phase
+    assert np.allclose(metric_3['TTp'].iloc[0], 10)
+    assert metric_3['BIS_NADIRp'].iloc[0] > 50
+    assert np.isnan(metric_3['TTn'].iloc[0])
+    assert metric_3['BIS_NADIRn'].iloc[0] < 50
