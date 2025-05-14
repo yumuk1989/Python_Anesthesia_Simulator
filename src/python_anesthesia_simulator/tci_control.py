@@ -112,7 +112,7 @@ class TCIController():
             else:
                 x = self.Ad @ x  # simulation of no infusion
             t += sampling_time
-            self.Ce.append(float(x[self.target_id]))
+            self.Ce.append(float(x[self.target_id, 0]))
             if x[self.target_id] < x_p[self.target_id]:
                 self.t_peak = t-sampling_time
             x_p = x
@@ -121,8 +121,8 @@ class TCIController():
         self.infusion_rate = 0  # last control move chosen
         self.x = np.zeros((4, 1))  # state to store the real patient
         self.target = 0
-        self.jpeak_0 = 0
-        self.jpeak_1 = 0
+        self.tpeak_0 = 0
+        self.tpeak_1 = 0
         self.time = 0
 
     def one_step(self, target: float = 0) -> float:
@@ -144,7 +144,7 @@ class TCIController():
 
             # if the target change, we reset the peak time
             if target != self.target:
-                self.jpeak_0 = self.t_peak
+                self.tpeak_0 = self.t_peak
                 self.target = target
 
             # compute trajectory from where we are without any infusion
@@ -152,7 +152,7 @@ class TCIController():
             Ce_0 = np.zeros(int(self.t_peak/self.sampling_time))
             for t in range(int(self.t_peak/self.sampling_time)):
                 x_temp = self.Ad @ x_temp
-                Ce_0[t] = x_temp[self.target_id]
+                Ce_0[t] = x_temp[self.target_id, 0]
 
             # compute the infusion rate to reach the target
 
@@ -168,18 +168,18 @@ class TCIController():
                 # if the target is not reached, we compute the infusion rate to reach the target at the next peak
                 else:
                     # compute a first guess of the infusion using the last peak time
-                    infusion_rate_temp = ((self.target - Ce_0[int(self.jpeak_0/self.sampling_time)-1]) /
-                                          self.Ce[int(self.jpeak_0/self.sampling_time)-1])
+                    infusion_rate_temp = ((self.target - Ce_0[int(self.tpeak_0/self.sampling_time)-1]) /
+                                          self.Ce[int(self.tpeak_0/self.sampling_time)-1])
                     self.infusion_rate = min(infusion_rate_temp, self.infusion_max)
-                    self.jpeak_1 = (Ce_0 + infusion_rate_temp*self.Ce).argmax()
+                    self.tpeak_1 = (Ce_0 + infusion_rate_temp*self.Ce).argmax() * self.sampling_time
                     counter = 0
                     # we iterate to find the peak time
-                    while self.jpeak_1 != self.jpeak_0 and counter < 500:
-                        self.jpeak_0 = self.jpeak_1
-                        infusion_rate_temp = ((self.target - Ce_0[int(self.jpeak_0/self.sampling_time)-1]) /
-                                              self.Ce[int(self.jpeak_0/self.sampling_time)-1])
+                    while self.tpeak_1 != self.tpeak_0 and counter < 500:
+                        self.tpeak_0 = self.tpeak_1
+                        infusion_rate_temp = ((self.target - Ce_0[int(self.tpeak_0/self.sampling_time)-1]) /
+                                              self.Ce[int(self.tpeak_0/self.sampling_time)-1])
                         self.infusion_rate = max(min(infusion_rate_temp, self.infusion_max), 0)
-                        self.jpeak_1 = (Ce_0 + infusion_rate_temp*self.Ce).argmax()
+                        self.tpeak_1 = (Ce_0 + infusion_rate_temp*self.Ce).argmax() * self.sampling_time
                         counter += 1
 
                     # if the peak time is not found, we use the last infusion rate
@@ -192,4 +192,6 @@ class TCIController():
         self.time += self.sampling_time
         self.x = self.Ad @ self.x + self.Bd * self.infusion_rate
         self.infusion_rate = max(min(self.infusion_rate, self.infusion_max), 0)
+        if isinstance(self.infusion_rate, np.ndarray):
+            self.infusion_rate = self.infusion_rate[0]
         return float(self.infusion_rate / self.drug_concentration * 3600)
