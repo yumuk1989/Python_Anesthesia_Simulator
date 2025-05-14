@@ -1,11 +1,3 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""
-Created on Thu Feb  2 16:32:20 2023
-
-@author: aubouinb
-"""
-
 import matplotlib.pyplot as plt
 from python_anesthesia_simulator import simulator
 
@@ -99,13 +91,14 @@ if __name__ == '__main__':
     plt.show()
 
 # %% test
-# Verify that the equilibrium is reached at the beginning and at the end of the simulation
-assert abs(George_1.dataframe['BIS'].iloc[0]-bis_target_1) < 5e-1
-assert abs(George_1.dataframe['BIS'].iloc[-1]-bis_target_2) < 1
-assert abs(George_1.dataframe['TOL'].iloc[0]-tol_target_1) < 1e-2
-assert abs(George_1.dataframe['TOL'].iloc[-1]-tol_target_2) < 1e-2
-assert abs(George_1.dataframe['MAP'].iloc[0]-map_target_1) < 1e-2
-assert abs(George_1.dataframe['MAP'].iloc[-1]-map_target_2) < 1e-1
-assert abs(George_2.dataframe['BIS'].iloc[-1]-bis_target_1) < 1
 
-print('test ok')
+
+def test_equilibrium():
+    """Verify that the equilibrium is reached at the beginning and at the end of the simulation."""
+    assert abs(George_1.dataframe['BIS'].iloc[0]-bis_target_1) < 5e-1
+    assert abs(George_1.dataframe['BIS'].iloc[-1]-bis_target_2) < 1
+    assert abs(George_1.dataframe['TOL'].iloc[0]-tol_target_1) < 1e-2
+    assert abs(George_1.dataframe['TOL'].iloc[-1]-tol_target_2) < 1e-2
+    assert abs(George_1.dataframe['MAP'].iloc[0]-map_target_1) < 1e-2
+    assert abs(George_1.dataframe['MAP'].iloc[-1]-map_target_2) < 1e-1
+    assert abs(George_2.dataframe['BIS'].iloc[-1]-bis_target_1) < 1
