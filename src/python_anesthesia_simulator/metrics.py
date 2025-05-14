@@ -96,7 +96,7 @@ def compute_control_metrics(time: list, bis: list, phase: str = 'maintenance',
 
     elif phase == 'total':
         # consider induction as the first 10 minutes
-        index_10 = np.where(np.array(time) == start_step)[0][0]-1
+        index_10 = np.where(np.array(time) == 10*600)[0][0]-1
         bis_induction = bis[:index_10]
         BIS_NADIR = min(bis_induction)
         US = max(0, 45 - BIS_NADIR)
