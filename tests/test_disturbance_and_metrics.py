@@ -132,6 +132,16 @@ metric_3 = metrics.compute_control_metrics(
     end_step=end_step
 )
 
+metric_1_new = metrics.new_metrics_induction(
+    George_1.dataframe.loc[:10*60/ts, 'Time'].values,
+    George_1.dataframe.loc[:10*60/ts, 'BIS'].values,
+)
+
+metric_3_new = metrics.new_metrics_maintenance(
+    George_3.dataframe.loc[10*60/ts:, 'Time'].values,
+    George_3.dataframe.loc[10*60/ts:, 'BIS'].values,
+)
+
 
 # %% test
 
@@ -177,3 +187,16 @@ def test_metrics():
     assert metric_3['BIS_NADIRp'].iloc[0] > 50
     assert np.isnan(metric_3['TTn'].iloc[0])
     assert metric_3['BIS_NADIRn'].iloc[0] < 50
+
+
+def test_new_metrics():
+    """test the new metrics."""
+
+    assert (metric_1_new['Sleep_Time'] == 6).all()
+    assert (metric_1_new["Low BIS time"] == 0).all()
+    assert abs(metric_1_new['Lowest BIS'].iloc[0] - 53.2) <= 1e-1
+    assert (metric_1_new['Settling time'] == 6).all()
+
+    assert (metric_3_new['Time out of range'] == 0).all()
+    assert abs(metric_3_new['Lowest BIS'].iloc[0] - 42.2) <= 1e-1
+    assert abs(metric_3_new['Highest BIS'].iloc[0] - 57.0) <= 1e-1

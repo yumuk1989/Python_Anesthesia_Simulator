@@ -52,11 +52,11 @@ Contributions to the project are made through GitHub pull requests. The steps to
    ```
 2. Install dependencies:
    ```bash
-   pip install -r requirements.txt
+   pip install -e .[test]
    ```
-3. Install Pytest and run tests to ensure the setup works:
+3. Run tests to ensure the setup works:
    ```bash
-   pip install pytest pytest-cov
+   pytest --cov=python_anesthesia_simulator tests/
    ```
 4. Create a feature branch:
    ```bash
