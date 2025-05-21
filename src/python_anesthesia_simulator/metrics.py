@@ -96,7 +96,7 @@ def compute_control_metrics(time: list, bis: list, phase: str = 'maintenance',
 
     elif phase == 'total':
         # consider induction as the first 10 minutes
-        index_10 = np.where(np.array(time) == 10*600)[0][0]-1
+        index_10 = np.where(np.array(time) == 10*60)[0][0]
         bis_induction = bis[:index_10]
         BIS_NADIR = min(bis_induction)
         US = max(0, 45 - BIS_NADIR)
@@ -168,7 +168,7 @@ def intergal_absolut_error(time: list, bis: list, bis_target: float = 50):
     return iae
 
 
-def new_metrics_induction(time: list, bis: list):
+def new_metrics_induction(time: np.ndarray, bis: np.ndarray):
     """Compute new metrics for induction of closed loop anesthesia.
 
     This function compute new metrics for closed loop anesthesia.
@@ -228,7 +228,7 @@ def new_metrics_induction(time: list, bis: list):
     return df
 
 
-def new_metrics_maintenance(time: list, bis: list):
+def new_metrics_maintenance(time: np.ndarray, bis: np.ndarray):
     """Compute new metrics for maintenance of closed loop anesthesia.
 
     Parameters
