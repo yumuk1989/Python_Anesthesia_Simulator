@@ -102,3 +102,13 @@ def test_equilibrium():
     assert abs(George_1.dataframe['MAP'].iloc[0]-map_target_1) < 1e-2
     assert abs(George_1.dataframe['MAP'].iloc[-1]-map_target_2) < 1e-1
     assert abs(George_2.dataframe['BIS'].iloc[-1]-bis_target_1) < 1
+
+
+def test_hill_inversion():
+    """ensure that the inversion of bis is effective"""
+    ce_propo = 4
+    ce_remi = 5
+    bis = George_1.bis_pd.compute_bis(ce_propo, ce_remi)
+    ce_propo_computed = George_1.bis_pd.inverse_hill(bis, ce_remi)
+
+    assert abs(ce_propo - ce_propo_computed) < 1e-3
