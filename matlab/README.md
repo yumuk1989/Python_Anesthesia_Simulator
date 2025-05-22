@@ -52,7 +52,7 @@ env = pyenv('Version', ...
 
 % Linux/macOS
 % env = pyenv('Version', ...
-    '/Users/your_username/your_environment/bin/python');
+%    '/Users/your_username/your_environment/bin/python');
 
 
 % Import the simulator module
