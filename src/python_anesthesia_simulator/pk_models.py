@@ -589,7 +589,7 @@ class CompartmentModel:
 
         Parameters
         ----------
-        CO : float
+        CO_ratio : float
             Ratio of Current CO relatively to initial CO.
 
         Returns
@@ -611,7 +611,7 @@ class CompartmentModel:
     def update_param_blood_loss(self, v_ratio: float):
         """Update PK coefficient to mimic a blood loss.
 
-            Update the blodd volume compartment
+            Update the blood volume compartment
 
         Parameters
         ----------

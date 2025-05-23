@@ -26,13 +26,13 @@ class Patient:
     model_remi : str, optional
         Name of the Remifentanil PK Model. The default is 'Minto'.
     ts : float, optional
-        Samplling time (s). The default is 1.
+        Sampling time (s). The default is 1.
     BIS_param : list, optional
         Parameter of the BIS model (Propo Remi interaction)
         list [C50p_BIS, C50r_BIS, gamma_BIS, beta_BIS, E0_BIS, Emax_BIS].
         The default is None.
     random_PK : bool, optional
-        Add uncertainties in the Propodfol and Remifentanil PK models. The default is False.
+        Add uncertainties in the Propofol and Remifentanil PK models. The default is False.
     random_PD : bool, optional
         Add uncertainties in the BIS PD model. The default is False.
     co_update : bool, optional
@@ -66,13 +66,13 @@ class Patient:
         Parameter of the BIS model (Propo Remi interaction)
         list [C50p_BIS, C50r_BIS, gamma_BIS, beta_BIS, E0_BIS, Emax_BIS].
     random_PK : bool
-        Add uncertainties in the Propodfol and Remifentanil PK models.
+        Add uncertainties in the Propofol and Remifentanil PK models.
     random_PD : bool
         Add uncertainties in the BIS PD model.
     co_update : bool
         Turn on the option to update PK parameters thanks to the CO value.
     save_data_bool : bool
-        Save all interns variable at each sampling time in a data frame.
+        Save all internal variables at each sampling time in a data frame.
     lbm : float
         Lean body mass (kg).
     propo_pk : CompartmentModel
@@ -88,11 +88,11 @@ class Patient:
     hemo_pd : Hemo_PD_model
         Hemodynamic model for CO and MAP computation.
     data : pd.DataFrame
-        Dataframe containing all the intern variables at each sampling time.
+        Dataframe containing all the internal variables at each sampling time.
     bis : float
         Bispectral index (%).
     tol : float
-        Tolerance of laryngospie probability (0-1).
+        Tolerance of laryngoscopy probability (0-1).
     co : float
         Cardiac output (L/min).
     map : float
@@ -229,7 +229,7 @@ class Patient:
         map : float
             Mean arterial pressure (mmHg).
         tol : float
-            Tolerance of Laringoscopy index (0-1).
+            Tolerance of Laryngoscopy index (0-1).
 
         """
         # compute PK model
@@ -556,7 +556,20 @@ class Patient:
         self.bis_pd.update_param_blood_loss(self.blood_volume/self.blood_volume_init)
 
     def init_dataframe(self):
-        r"""Initilize the dataframe variable."""
+        r"""Initilize the dataframe variable with the following columns:
+        - 'Time': Simulation time (s)
+        - 'BIS': Bispectral Index
+        - 'TOL': Tolerance level
+        - 'MAP': Mean Arterial Pressure (mmHg)
+        - 'CO': Cardiac Output (L/min)
+        - 'u_propo': Propofol infusion rate (mg/s)
+        - 'u_remi': Remifentanil infusion rate (µg/s)
+        - 'u_nore': Norepinephrine infusion rate (µg/s)
+        - 'x_propo_1' to 'x_propo_6': States of the propofol PK model
+        - 'x_remi_1' to 'x_remi_5': States of the remifentanil PK model
+        - 'x_nore': State of the norepinephrine PK model
+        - 'blood_volume': Blood volume (L)
+        """
         self.Time = 0
         column_names = ['Time',  # time
                         'BIS', 'TOL', 'MAP', 'CO',  # outputs
@@ -568,7 +581,7 @@ class Patient:
         self.dataframe = pd.DataFrame(columns=column_names, dtype=float)
 
     def save_data(self, inputs: list = [0, 0, 0]):
-        r"""Save all current intern variable as a new line in self.dataframe."""
+        r"""Save all current internal variables as a new line in self.dataframe."""
         # store data
 
         new_line = {'Time': self.Time,
@@ -589,22 +602,29 @@ class Patient:
 
     def full_sim(self, u_propo: Optional[np.array] = None, u_remi: Optional[np.array] = None, u_nore: Optional[np.array] = None,
                  x0_propo: Optional[np.array] = None, x0_remi: Optional[np.array] = None, x0_nore: Optional[np.array] = None) -> pd.DataFrame:
-        r"""Simulate the patient model with the given inputs.
+        r"""Simulates the patient model using the drugs infusions profiles provided as inputs.
 
         Parameters
         ----------
         u_propo : numpy array, optional
-            Propofol infusion rate (mg/s).
+            Propofol infusion rate (mg/s). Must be a 1D array.
         u_remi : numpy array, optional
-            Remifentanil infusion rate (µg/s).
+            Remifentanil infusion rate (µg/s). Must be a 1D array.
         u_nore : numpy array, optional
-            Norepinephrine infusion rate (µg/s).
+            Norepinephrine infusion rate (µg/s). Must be a 1D array.
         x0_propo : numpy array, optional
             Initial state of the propofol PK model. The default is zeros.
         x0_remi : numpy array, optional
             Initial state of the remifentanil PK model. The default is zeros.
         x0_nore : numpy array, optional
             Initial state of the norepinephrine PK model. The default is zeros.
+
+        Requirements
+        ------------
+        - At least one of `u_propo`, `u_remi`, or `u_nore` must be provided.
+        - All input arrays (`u_propo`, `u_remi`, `u_nore`) must have the same length.
+          If any of them is not provided, it will be automatically filled with zeros to match the length of the others.
+        - The simulation duration is determined by the length of the input arrays.
 
         Returns
         -------
