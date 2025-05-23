@@ -1,7 +1,7 @@
 Modelling Anesthesia
 ================================
 
-In the practice of pharmacology, models of drugs effect are usually separated into two sub-categories: Pharmacokinetic (PK) and pharmacodynamic (PD). The PK model describes the time evolution of the drug concentration in the body after an injection, and the PD models describe the effect of a given drug concentration on a physiological variable.
+In the practice of pharmacology, models of drugs effect are usually separated into two sub-categories: pharmacokinetic (PK) and pharmacodynamic (PD). The PK model describes the time evolution of the drug concentration in the body after an injection, and the PD model describe the effect of a given drug concentration on a physiological variable.
 
 Pharmacokinetics
 ----------------
@@ -37,7 +37,7 @@ For propofol and remifentanil, a three-compartment model is commonly used, see t
     \end{pmatrix}
     u(t)
 
-where :math:`x_1(t), x_2(t)` and :math:`x_3(t)` respectively represent drug concentration in blood, muscle and fat in :math:`\mathrm{mg/ml}` for propofol and :math:`\mathrm{µg/ml}` for remifentanil. The coefficients can be obtained from the equations below, all in :math:`\mathrm{ml/s}`:
+where :math:`x_1(t), x_2(t)` and :math:`x_3(t)` respectively represent drug concentration in blood, muscle and fat in :math:`\mathrm{mg/ml}` for propofol and :math:`\mathrm{µg/ml}` for remifentanil. The coefficients can be obtained from the equations below, all in :math:`\mathrm{1/s}`:
 
 .. math::
 
@@ -62,7 +62,7 @@ Multiple studies have been conducted to estimate the parameters of the PK model 
 For norepinephrine, there is less studies focused on modelling, in Beloeil2005_ the authors have proposed a single compartment model given by the following equation:
 
 .. math::
-    \dot{x}(t) = \frac{Cl}{V} x(t) \frac{1}{V} u(t)
+    \dot{x}(t) = \frac{Cl}{V} x(t) + \frac{1}{V} u(t)
 
 where :math:`V` and :math:`Cl` are, respectively, the volume and the clearance rate of the single compartment. :math:`x(t)` is directly the blood concentration of norepinephrine.
 
@@ -82,8 +82,6 @@ where :math:`E(t)` is the effect of the drug at time :math:`t`, :math:`E_{max}` 
    :align: center
    :alt: Sigmoid function
 
-   Sigmoid function for different values of the Hill coefficient and half-effect concentration.
-
 For propofol and remifentanil, before applying the Hill function, an effect-site compartment is added to the PK model to represent a delay between a rise of drug concentration in blood and the occurrence of the effect. This delay is dependent on the physiological variables, and thus, multiple effect-site compartments can be added to the model. As those compartments are virtual, the drug transfer is considered in only one direction, from blood to the effect site without affecting the blood compartment concentration. Thus, the addition of the effect site does not affect the PK model. The equation for one effect-site compartment is given by:
 
 .. math::
@@ -98,6 +96,8 @@ where :math:`x_{es}(t)` is the drug concentration in the effect site, :math:`x_1
    :alt: Four-compartment model
 
    Four-compartment model for propofol and remifentanil.
+
+In the simulator, we slightly abuse the notation and included the effect-site compartments in the PK model in order to keep all the dynamical system in the same state-space representation.  
 
 If pharmacokinetics models usually assume no interaction between drugs, pharmacodynamics models should express the synergy or the antagonism between drugs. For the effect of propofol and remifentanil on the BIS, a 3D-Hill function is used to express the drug's synergy:
 
@@ -129,32 +129,36 @@ Few studies have been conducted on the pharmacodynamic part of the anesthesia pr
    :align: center
    :alt: 3D-Hill function
 
-   3D-Hill function for the effect of propofol and remifentanil on the BIS.
 
-To output an indicator of analgesia in the simulator, we used  
+To output an indicator of analgesia in the simulator, we used the Tolerance of Laryngoscopy (TOL). The TOL is defined as the probability of reaction of the patient to the laryngoscopy. In Bouillon2004_, the authors proposed a hierarchical model to link drug effect site concentration to TOL. The model is given by:
+
+.. math:: postopioid(t) = preopioid \times \left(1 - \frac{x_{er,BIS}(t)^{\gamma_r}}{x_{er,BIS}(t)^{\gamma_r} + (C_{r,50,TOL} \times preopioid)^{\gamma_r}}\right)
+.. math:: TOL(t) = \frac{x_{ep,BIS}(t)^{\gamma_p}}{x_{ep,BIS}(t)^{\gamma_p} + (C_{p,50,TOL} \times postopioid(t))^{\gamma_p}}
+
+where :math:`preopioid` is the tolerance of laryngoscopy without remifentanil, :math:`x_{er,BIS}(t)` and :math:`x_{ep,BIS}(t)` are the remifentanil and propofol concentration in the TOL effect site (same than the BIS effect site), :math:`C_{r,50,TOL}` and :math:`C_{p,50,TOL}` are the remifentanil and propofol half-effect concentrations for TOL.
 
 
 For the effect of propofol and remifentanil on mean arterial pressure (MAP), the interaction of drugs has still to be studied. Thus, the effect of propofol, remifentanil and norepinephrine is considered to be independent and additive. The influence of propofol on MAP has been studied in Jeleazcov2015_, the influence of remifentanil in Standing2010_ and the one of norepinephrine in Beloeil2005_. For propofol, the authors of Jeleazcov2015_ find that the use of two different effect-site compartments better represents the effect of propofol on MAP. The model is given by:
 
 .. math::
-
-    MAP(t) =  MAP_0 - \underbrace{E_{max,r}\frac{x_{er,hemo}^{\gamma_{r}}}{C_{50r,MAP}^{\gamma_{r}} + x_{er,hemo}^{\gamma_{r}}}}_{\text{remifentanil effect}} 
-    - \underbrace{E_{max,p}  \frac{I_p}{1 + I_p}}_{\text{propofol effect}} + \underbrace{E_{max,n}\frac{x_{n}^{\gamma_{r}}}{C_{50n,MAP}^{\gamma_{n}} + x_{n}^{\gamma_{r}}}}_{\text{norepinephrine effect}}
+    \small
+    MAP(t) =  MAP_0 - \underbrace{E_{max,r}\frac{x_{er,hemo}(t)^{\gamma_{r}}}{C_{50r,MAP}^{\gamma_{r}} + x_{er,hemo}(t)^{\gamma_{r}}}}_{\text{remifentanil effect}} 
+    - \underbrace{E_{max,p}  \frac{I_p(t)}{1 + I_p(t)}}_{\text{propofol effect}} + \underbrace{E_{max,n}\frac{x_{n}(t)^{\gamma_{r}}}{C_{50n,MAP}^{\gamma_{n}} + x_{n}(t)^{\gamma_{r}}}}_{\text{norepinephrine effect}}
 
 with:
 
 .. math::
 
-    I_p = \left( \frac{x_{ep,hemo,1}(t)}{C_{50p,MAP,1}}\right)^{\gamma_{p1}} + \left(\frac{x_{ep,hemo,2}(t)}{C_{50p,MAP,2}}\right)^{\gamma_{p2}}
+    I_p(t) = \left( \frac{x_{ep,hemo,1}(t)}{C_{50p,MAP,1}}\right)^{\gamma_{p1}} + \left(\frac{x_{ep,hemo,2}(t)}{C_{50p,MAP,2}}\right)^{\gamma_{p2}}
 
-where :math:`MAP_0` is the MAP baseline, :math:`E_{max,r}`, :math:`E_{max,p}` and :math:`E_{max,n}` are the maximal effects of remifentanil, propofol and norepinephrine on MAP, :math:`x_{er,hemo}`, :math:`x_{ep,hemo,1}`, :math:`x_{ep,hemo,2}` and :math:`x_{n}` are the remifentanil and propofol, and norepinephrine concentrations in the MAP effect site, or blood compartment for norepinephrine. :math:`C_{50r,MAP}`, :math:`C_{50p,MAP,1}`, :math:`C_{50p,MAP,2}`, :math:`C_{50n,MAP}`, :math:`\gamma_{r}`, :math:`\gamma_{p1}`, :math:`\gamma_{p2}`, and :math:`\gamma_{n}`, are the half-effect concentrations and Hill coefficients of remifentanil and propofol and norepinephrine.
+where :math:`MAP_0` is the MAP baseline, :math:`E_{max,r}`, :math:`E_{max,p}` and :math:`E_{max,n}` are the maximal effects of remifentanil, propofol and norepinephrine on MAP, :math:`x_{er,hemo}`, :math:`x_{ep,hemo,1}`, :math:`x_{ep,hemo,2}` and :math:`x_{n}` are the remifentanil and propofol, and norepinephrine concentrations in the hemodynamic effect site, or blood compartment for norepinephrine. :math:`C_{50r,MAP}`, :math:`C_{50p,MAP,1}`, :math:`C_{50p,MAP,2}`, :math:`C_{50n,MAP}`, :math:`\gamma_{r}`, :math:`\gamma_{p1}`, :math:`\gamma_{p2}`, and :math:`\gamma_{n}`, are the half-effect concentrations and Hill coefficients of remifentanil and propofol and norepinephrine.
 
-For the effect on cardiac output (CO), there is even less studies are scarce. As for MAP, we considered additive drug effect, without any synergic effect. Because no sigmoid model was available in the litterature, we infer value to match experimental values from the following papers: Fairfield1991_ for propofol, Chanavaz2005_ for remifentanil and Monnet2011_ for  norepinephrine. We used the same effect sites than the one from MAP, for propofol the mean concentration between the two efefct site compartment is used. Note that this is a crude simplification.
+For the effect on cardiac output (CO), studies are scarce. As for MAP, we considered additive drug effect, without any synergic effect. Because no sigmoid model was available in the litterature, we infer value to match experimental values from the following papers: Fairfield1991_ for propofol, Chanavaz2005_ for remifentanil and Monnet2011_ for  norepinephrine. We used the same effect sites than the one from MAP, and for propofol the mean concentration between the two efefct site compartment is used. Note that this is a crude simplification.
 
 .. math::
-
-    CO(t) =  CO_0 - \underbrace{E_{max,r}\frac{x_{er,hemo}^{\gamma_{r}}}{C_{50r,CO}^{\gamma_{r}} + x_{er,hemo}^{\gamma_{r}}}}_{\text{remifentanil effect}} 
-    - \underbrace{E_{max,p}\frac{x_{p,hemo}^{\gamma_{p}}}{C_{50p,CO}^{\gamma_{p}} + x_{p,hemo}^{\gamma_{p}}}}_{\text{propofol effect}} + \underbrace{E_{max,n}\frac{x_{n}^{\gamma_{r}}}{C_{50n,CO}^{\gamma_{n}} + x_{n}^{\gamma_{r}}}}_{\text{norepinephrine effect}}
+    \small
+    CO(t) =  CO_0 - \underbrace{E_{max,r}\frac{x_{er,hemo}(t)^{\gamma_{r}}}{C_{50r,CO}^{\gamma_{r}} + x_{er,hemo}(t)^{\gamma_{r}}}}_{\text{remifentanil effect}} 
+    - \underbrace{E_{max,p}\frac{x_{p,hemo}(t)^{\gamma_{p}}}{C_{50p,CO}^{\gamma_{p}} + x_{p,hemo}(t)^{\gamma_{p}}}}_{\text{propofol effect}} + \underbrace{E_{max,n}\frac{x_{n}(t)^{\gamma_{r}}}{C_{50n,CO}^{\gamma_{n}} + x_{n}(t)^{\gamma_{r}}}}_{\text{norepinephrine effect}}
 
 with:
 
@@ -162,9 +166,9 @@ with:
 
     x_{p,hemo}(t) = \frac{x_{ep,hemo,1}(t)+x_{ep,hemo,2}(t)}{2}
 
-where :math:`CO_0` is the MAP baseline, :math:`E_{max,r}`, :math:`E_{max,p}` and :math:`E_{max,n}` are the maximal effects of remifentanil, propofol and norepinephrine on CO, :math:`x_{er,hemo}`, :math:`x_{ep,hemo,1}`, :math:`x_{ep,hemo,2}` and :math:`x_{n}` are the remifentanil and propofol, and norepinephrine concentrations in the MAP effect site, or blood compartment for norepinephrine. :math:`C_{50r,CO}`, :math:`C_{50p,CO}`, :math:`C_{50n,CO}`, :math:`\gamma_{r}`, :math:`\gamma_{p}`, and :math:`\gamma_{n}`, are the half-effect concentrations and Hill coefficients of remifentanil and propofol and norepinephrine.
+where :math:`CO_0` is the CO baseline, :math:`E_{max,r}`, :math:`E_{max,p}` and :math:`E_{max,n}` are the maximal effects of remifentanil, propofol and norepinephrine on CO, :math:`x_{er,hemo}`, :math:`x_{ep,hemo,1}`, :math:`x_{ep,hemo,2}` and :math:`x_{n}` are the remifentanil and propofol, and norepinephrine concentrations in the hemodynamic effect site, or blood compartment for norepinephrine. :math:`C_{50r,CO}`, :math:`C_{50p,CO}`, :math:`C_{50n,CO}`, :math:`\gamma_{r}`, :math:`\gamma_{p}`, and :math:`\gamma_{n}`, are the half-effect concentrations and Hill coefficients of remifentanil and propofol and norepinephrine.
 
-The overall model of the anesthesia process is then given by connecting the PK model and the PD model as illustrated in the figure below. This can be formalized as a model with a linear dynamic and a non-linear output function in the following state-space representation:
+The overall model of the anesthesia process is then given by connecting the PK model and the PD model. This can be formalized as a model with a linear dynamic and a non-linear output function in the following state-space representation:
 
 .. math::
     :label: eq:standard_model
@@ -174,7 +178,69 @@ The overall model of the anesthesia process is then given by connecting the PK m
         y(t) = h(x(t))
     \end{cases}
 
-where :math:`x(t)` is the system state, including the drug concentrations of propofol, remifentanil and norepinephrine in each compartment, and :math:`y(t)` is the output of the system, *i.e.*, the BIS, TOL, MAP, and CO.
+where :math:`x(t)` is the system state, including the drug concentrations of propofol, remifentanil and norepinephrine in each compartment, :math:`u(t)` the drugs rates, and :math:`y(t)` is the output of the system, *i.e.*, the BIS, TOL, MAP, and CO.
+
+The following table summarizes the effect of the drugs on the physiological variables:
+
+.. raw:: html
+
+    <style>
+      .blue-bg { background-color: #cce5ff; }  /* Light blue */
+      .red-bg { background-color: #f8d7da; }   /* Light red */
+      table.colored-table {
+        border-collapse: collapse;
+        width: 100%;
+      }
+      table.colored-table th,
+      table.colored-table td {
+        border: 1px solid #ddd;
+        padding: 8px;
+        text-align: center;
+      }
+      table.colored-table th {
+        background-color: #f2f2f2;
+      }
+    </style>
+
+    <table class="colored-table">
+      <thead>
+        <tr>
+          <th></th>
+          <th>Propofol</th>
+          <th>Remifentanil</th>
+          <th>Norepinephrine</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <th>BIS</th>
+          <td class="blue-bg">-</td>
+          <td class="blue-bg">-</td>
+          <td>No effect</td>
+        </tr>
+        <tr>
+          <th>TOL</th>
+          <td class="red-bg">+</td>
+          <td class="red-bg">+</td>
+          <td>No effect</td>
+        </tr>
+        <tr>
+          <th>MAP</th>
+          <td class="blue-bg">-</td>
+          <td class="blue-bg">-</td>
+          <td class="red-bg">+</td>
+        </tr>
+        <tr>
+          <th>CO</th>
+          <td class="blue-bg">-</td>
+          <td class="blue-bg">-</td>
+          <td class="red-bg">+</td>
+        </tr>
+      </tbody>
+    </table>
+
+
+
 
 .. .. figure:: ./images/standard_model.png
    :width: 90%
@@ -190,7 +256,7 @@ Cardiac output dependency
 Several studies have shown the influence of cardiac output (CO) on the pharmacokinetics of propofol (Adachi2001_; Kurita2002_; Upton1999_). In Bienert2020_, the authors proposed the assumption that the clearance rate of propofol and fentanil could be proportional to CO resulting in a non-constant clearance rate. In the simulator, the same assumption is made for propofol and extended to remifentanil and norepinephrine clearance rates in the PK model. 
 
 .. math::
-    Cl = Cl_0 \frac{CO}{CO_0}
+    Cl(t) = Cl_0 \frac{CO(t)}{CO_0}
 
 Where :math:`Cl` denotes all the clearances rates of each drugs and each compartment, and :math:`Cl_0` and :math:`CO_0` the initial clearance rates and cardiac output.
 
