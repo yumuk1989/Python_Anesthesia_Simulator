@@ -30,8 +30,8 @@ George = simulator.Patient([age, height, weight, gender], ts = Ts);
 
 %% Simulation
 
-T_simu = 3600;      % total simulation time in seconds
-N_simu = T_simu/Ts; % total number of simulation steps
+T_simu = 3600;             % total simulation time in seconds
+N_simu = floor(T_simu/Ts); % total number of simulation steps
 
 % Initialize infusion profiles
 propofol_infusion_profile = zeros(N_simu,1);        % mg/s
