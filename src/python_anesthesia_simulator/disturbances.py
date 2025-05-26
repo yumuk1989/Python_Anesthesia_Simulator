@@ -11,7 +11,7 @@ def compute_disturbances(time: float, dist_profil: str = 'realistic',
     time : float
         Time: in seconds.
     dist_profil : str, optional
-        disturbance profil, can be: 'realistic', 'simple', 'step' or "null". The default is 'realistic'.
+        disturbance profile, can be: 'realistic', 'simple', 'step' or "null". The default is 'realistic'.
     start_step : float, optional
         start time of the step distuebance (seconds). The default is 600s.
     end_step : float, optional
