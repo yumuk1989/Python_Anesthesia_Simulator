@@ -4,12 +4,12 @@ import numpy as np
 def compute_disturbances(time: float, dist_profil: str = 'realistic',
                          start_step: float = 600, end_step: float = 1200) -> list:
     """
-    Give the value of the distubance profil for a given time.
+    Give the value of the distubance profile for a given time.
 
     Parameters
     ----------
     time : float
-        Time: in seconde.
+        Time: in seconds.
     dist_profil : str, optional
         disturbance profil, can be: 'realistic', 'simple', 'step' or "null". The default is 'realistic'.
     start_step : float, optional

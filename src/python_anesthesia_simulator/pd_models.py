@@ -229,7 +229,7 @@ class BIS_model:
 
 
 class TOL_model():
-    r"""Hierarchical model to link druf effect site concentration to Tolerance of Laringoscopy.
+    r"""Hierarchical model to link drug effect site concentration to Tolerance of Laringoscopy.
 
     The equation are:
 
@@ -305,7 +305,7 @@ class TOL_model():
 
         Compute the output of the Hirarchical model to predict TOL
         from Propofol and Remifentanil effect site concentration.
-        TOL = 1 mean very relaxed and will tolerate laryngoscopie while TOL = 0 mean fully awake and will not tolerate.
+        TOL = 1 mean very relaxed and will tolerate laryngoscopy while TOL = 0 mean fully awake and will not tolerate it.
 
         Parameters
         ----------
@@ -364,7 +364,7 @@ class Hemo_PD_model():
         [emax_SAP, emax_DAP, c50_map_1, c50_map_2, gamma_map_1, gamma_map_2, Emax_co, c50_co, gamma_co].
         The default is None.
     remi_param : list, optional
-        List of hill curve parameters for Relifentanil action 
+        List of hill curve parameters for Remifentanil action 
         [Emax_map, c50_map, gamma_map, Emax_co, c50_co, gamma_co].
         The default is None.
     random : bool, optional
@@ -634,7 +634,7 @@ class Hemo_PD_model():
 
     def compute_hemo(self, c_es_propo: list, c_es_remi: float, c_es_nore: float) -> tuple[float, float]:
         """
-        Compute current MAP and CO using addition of hill curv, one for each drugs.
+        Compute current MAP and CO using addition of hill curves, one for each drug.
 
         Parameters
         ----------
