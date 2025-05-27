@@ -506,8 +506,8 @@ class Patient:
         ----------
         bis_target : float
             BIS target (%).
-        rass_target : float
-            RASS target ([0, -5]).
+        tol_target : float
+            TOL target ([0, 1]).
         map_target:float
             MAP target (mmHg).
 
