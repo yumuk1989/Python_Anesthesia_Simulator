@@ -1,6 +1,6 @@
-# MATLAB Script: Python-Based Anesthesia Simulator
+# MATLAB Script: perform an open loop simulation with the Python Anesthesia Simulator
 
-This script demonstrates how to use a Python-based anesthesia simulator from within MATLAB. It sets up the environment, configures patient parameters, defines infusion profiles, runs the simulation, and plots results such as drug concentrations and physiological responses.
+This script demonstrates how to perform an open loop simulation by calling the Python Anesthesia Simulator in MATLAB.
 
 ---
 

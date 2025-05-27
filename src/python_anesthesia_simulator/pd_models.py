@@ -22,7 +22,7 @@ class BIS_model:
     ----------
     hill_model : str, optional
         'Bouillon' [Bouillon2004]_ is available.
-        Ignored if hill_param is specified. Default is 'Bouilllon'.
+        Ignored if hill_param is specified. Default is 'Bouillon'.
     hill_param : list, optional
         Parameter of the Hill model (Propo Remi interaction)
         list [c50p_BIS, c50r_BIS, gamma_BIS, beta_BIS, E0_BIS, Emax_BIS]:
