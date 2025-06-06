@@ -6,8 +6,11 @@ clc
 % Change with your path
 
 % Windows
+% env = pyenv('Version', ...
+%     'your_path\your_environment\Scripts\python.exe');
+
 env = pyenv('Version', ...
-    'your_path\your_environment\Scripts\python.exe');
+    'C:\Users\erhan\anaconda3\python.exe');
 
 % Linux/macOS
 % env = pyenv('Version', ...
