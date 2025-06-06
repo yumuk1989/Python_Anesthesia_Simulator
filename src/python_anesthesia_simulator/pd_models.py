@@ -179,10 +179,10 @@ class BIS_model:
             Bis value.
 
         """
-        if self.c50r == 0
-            interaction = c_es_propo / self.c50p;
+        if self.c50r == 0:
+            interaction = c_es_propo / self.c50p
             
-        elif self.c50r != 0 
+        elif self.c50r != 0: 
             up = c_es_propo / self.c50p
             ur = c_es_remi / self.c50r
             Phi = up/(up + ur + 1e-6)
@@ -234,9 +234,9 @@ class BIS_model:
 
         """
 
-        if self.c50r == 0
+        if self.c50r == 0:
             cep = self.c50p * ((self.E0-BIS)/(self.Emax-self.E0+BIS))**(1/self.gamma)
-        elif self.c50r != 0
+        elif self.c50r != 0:
             temp = (max(0, self.E0-BIS)/(self.Emax-self.E0+BIS))**(1/self.gamma)
             Yr = c_es_remi / self.c50r
             b = 3*Yr - temp
@@ -260,7 +260,7 @@ class BIS_model:
     def plot_surface(self):
         """Plot the 3D-Hill surface of the BIS related to Propofol and Remifentanil effect site concentration or the 2-D Hill curve of the BIS related to Propofol effect site concentration according to the BIS model chosen"""
 
-        if self.c50r == 0
+        if self.c50r == 0:
             cep = np.linspace(0, 6, 50)
             bis = self.compute_bis(cep)
             plt.figure()
@@ -271,7 +271,7 @@ class BIS_model:
             plt.ylim(0, 100)
             plt.show()
             
-        elif self.c50r != 0
+        elif self.c50r != 0:
             cer = np.linspace(0, 4, 50)
             cep = np.linspace(0, 6, 50)
             cer, cep = np.meshgrid(cer, cep)
