@@ -261,7 +261,7 @@ class BIS_model:
         """Plot the 3D-Hill surface of the BIS related to Propofol and Remifentanil effect site concentration or the 2-D Hill curve of the BIS related to Propofol effect site concentration according to the BIS model chosen"""
 
         if self.c50r == 0:
-            cep = np.linspace(0, 6, 50)
+            cep = np.linspace(0, 16, 17)
             bis = self.compute_bis(cep)
             plt.figure()
             plt.plot(cep, bis)
@@ -272,17 +272,19 @@ class BIS_model:
             plt.show()
             
         elif self.c50r != 0:
-            cer = np.linspace(0, 4, 50)
-            cep = np.linspace(0, 6, 50)
+            cer = np.linspace(0, 8, 9)
+            cep = np.linspace(0, 12, 13)
             cer, cep = np.meshgrid(cer, cep)
-            effect = 100 - self.compute_bis(cep, cer)
+            effect = self.compute_bis(cep, cer)
             fig, ax = plt.subplots(subplot_kw={"projection": "3d"})
             surf = ax.plot_surface(cer, cep, effect, cmap=cm.jet, linewidth=0.1)
             ax.set_xlabel('Remifentanil Ce [ng/mL]')
             ax.set_ylabel('Propofol Ce [μg/mL]')
             ax.set_zlabel('BIS')
+            ax.set_zlim(0, 100)
+            ax.set_zticks(np.arange(0, 101, 10))
             fig.colorbar(surf, shrink=0.5, aspect=8)
-            ax.view_init(12, -72)
+            ax.view_init(20, 60, 0)
             plt.show()
 
 
