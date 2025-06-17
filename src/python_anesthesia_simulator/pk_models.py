@@ -99,7 +99,9 @@ class CompartmentModel:
     .. [Oualha2014] M. Oualha et al., “Population pharmacokinetics and haemodynamic effects of norepinephrine
             in hypotensive critically ill children,” British Journal of Clinical Pharmacology,
             vol. 78, no. 4, pp. 886–897, 2014, doi: 10.1111/bcp.12412.
-    .. [Li2024] 
+    .. [Li2024] Y. Li et al., “Population Pharmacokinetic Modelling of Norepinephrine
+            in Healthy Volunteers Prior to and During General Anesthesia,” Clin Pharmacokinet,
+            vol. 63, no. 11, pp. 1597–1608, Nov. 2024, doi: 10.1007/s40262-024-01430-y.
 
     """
 
