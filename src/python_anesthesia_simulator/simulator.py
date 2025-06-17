@@ -25,6 +25,8 @@ class Patient:
         Name of the Propofol PK Model. The default is 'Schnider'.
     model_remi : str, optional
         Name of the Remifentanil PK Model. The default is 'Minto'.
+    model_nore : str, optional
+        Name of the norepinephrine PK Model. The default is 'Beloeil'.
     ts : float, optional
         Sampling time (s). The default is 1.
     BIS_param : list, optional
@@ -60,6 +62,8 @@ class Patient:
         Name of the propofol PK model.
     model_remi : str
         Name of the remifentanil PK model.
+    model_remi : str
+        Name of the norepinephrine PK model.
     model_bis : str
         Name of the BIS PD model.
     hill_param : list
@@ -115,6 +119,7 @@ class Patient:
                  map_base: float = 90,
                  model_propo: str = 'Schnider',
                  model_remi: str = 'Minto',
+                 model_nore: str = 'Beloeil',
                  model_bis: str = 'Bouillon',
                  ts: float = 1,
                  hill_param: list = None,
@@ -139,6 +144,7 @@ class Patient:
         self.ts = ts
         self.model_propo = model_propo
         self.model_remi = model_remi
+        self.model_nore = model_nore
         self.hill_param = hill_param
         self.random_PK = random_PK
         self.random_PD = random_PD
@@ -159,7 +165,7 @@ class Patient:
                                         ts=self.ts, model=model_remi, random=random_PK)
 
         self.nore_pk = CompartmentModel(patient_characteristic, self.lbm, drug="Norepinephrine",
-                                        ts=self.ts, model=model_remi, random=random_PK)
+                                        ts=self.ts, model=model_nore, random=random_PK)
 
         # Init PD model for BIS
         self.bis_pd = BIS_model(hill_model=model_bis, hill_param=hill_param, random=random_PD)
@@ -557,18 +563,18 @@ class Patient:
 
     def init_dataframe(self):
         r"""Initilize the dataframe variable with the following columns:
-        - 'Time': Simulation time (s)
-        - 'BIS': Bispectral Index
-        - 'TOL': Tolerance level
-        - 'MAP': Mean Arterial Pressure (mmHg)
-        - 'CO': Cardiac Output (L/min)
-        - 'u_propo': Propofol infusion rate (mg/s)
-        - 'u_remi': Remifentanil infusion rate (µg/s)
-        - 'u_nore': Norepinephrine infusion rate (µg/s)
-        - 'x_propo_1' to 'x_propo_6': States of the propofol PK model
-        - 'x_remi_1' to 'x_remi_5': States of the remifentanil PK model
-        - 'x_nore': State of the norepinephrine PK model
-        - 'blood_volume': Blood volume (L)
+                                                                - 'Time': Simulation time (s)
+                                                                - 'BIS': Bispectral Index
+                                                                - 'TOL': Tolerance level
+                                                                - 'MAP': Mean Arterial Pressure (mmHg)
+                                                                - 'CO': Cardiac Output (L/min)
+                                                                - 'u_propo': Propofol infusion rate (mg/s)
+                                                                - 'u_remi': Remifentanil infusion rate (µg/s)
+                                                                - 'u_nore': Norepinephrine infusion rate (µg/s)
+                                                                - 'x_propo_1' to 'x_propo_6': States of the propofol PK model
+                                                                - 'x_remi_1' to 'x_remi_5': States of the remifentanil PK model
+                                                                - 'x_nore': State of the norepinephrine PK model
+                                                                - 'blood_volume': Blood volume (L)
         """
         self.Time = 0
         column_names = ['Time',  # time
@@ -620,11 +626,11 @@ class Patient:
             Initial state of the norepinephrine PK model. The default is zeros.
 
         Requirements
-        ------------
-        - At least one of `u_propo`, `u_remi`, or `u_nore` must be provided.
-        - All input arrays (`u_propo`, `u_remi`, `u_nore`) must have the same length.
-          If any of them is not provided, it will be automatically filled with zeros to match the length of the others.
-        - The simulation duration is determined by the length of the input arrays.
+                                                                ------------
+                                                                - At least one of `u_propo`, `u_remi`, or `u_nore` must be provided.
+                                                                - All input arrays (`u_propo`, `u_remi`, `u_nore`) must have the same length.
+                                                                                If any of them is not provided, it will be automatically filled with zeros to match the length of the others.
+                                                                - The simulation duration is determined by the length of the input arrays.
 
         Returns
         -------
