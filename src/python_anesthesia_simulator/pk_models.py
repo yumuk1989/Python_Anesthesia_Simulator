@@ -32,14 +32,14 @@ class CompartmentModel:
     model : str, optional
         Could be "Schnider" [Schnider1999]_, "Marsh_initial"[Marsh1991]_, "Marsh_modified"[Struys2000]_,
         "Shuttler"[Schuttler2000]_ or "Eleveld"[Eleveld2018]_ for Propofol.
-        "Minto"[Minto1997]_, "Eleveld"[Eleveld2017]_ for Remifentanil.
-        only "Beloeil"[Beloeil2005]_ for Norepinephrine.
-        The default is "Minto" for Remifentanil and "Schnider" for Propofol.
+        "Minto"[Minto1997]_, or "Eleveld"[Eleveld2017]_ for Remifentanil.
+        "Beloeil"[Beloeil2005]_, "Oualha"[Oualha2014], or "Li"[Li2024] for Norepinephrine.
+        The default is "Schnider" for Propofol, "Minto" for Remifentanil, and Beloeil for Norepinephrine.
     ts : float, optional
         Sampling time, in s. The default is 1.
     random : bool, optional
         bool to introduce uncertainties in the model. The default is False.
-    x0 : list, optional
+    x0 : np.ndarray, optional
         Initial concentration of the compartement model. The default is np.ones([4, 1])*1e-4.
     opiate : bool, optional
         For Elelevd model for propofol, specify if their is a co-administration of opiate (Remifentantil)
@@ -54,19 +54,23 @@ class CompartmentModel:
         Sampling time, in s.
     drug : str
         can be "Propofol", "Remifentanil" or "Norepinephrine".
-    A_init : list
+    A_init : np.ndarray
         Initial value of the matrix A.
-    B_init : list
+    B_init : np.ndarray
         Initial value of the matrix B.
     v1 : float
         Volume of the first compartement.
+    u_endo : float.
+        Endogenous production of drug (µg/s).
+    self.u_lag : float.
+        Lag time in the input of the model (s).
     continuous_sys : control.StateSpace
         Continuous state space model.
     discrete_sys : control.StateSpace
         Discrete state space model.
-    x : list
+    x : np.ndarray
         State vector.
-    y : list
+    y : np.ndarray
         Output vector (hypnotic effect site concentration).
 
     References
@@ -92,12 +96,16 @@ class CompartmentModel:
     .. [Beloeil2005] H. Beloeil, J.-X. Mazoit, D. Benhamou, and J. Duranteau, “Norepinephrine kinetics and dynamics
             in septic shock and trauma patients,” BJA: British Journal of Anaesthesia,
             vol. 95, no. 6, pp. 782–788, Dec. 2005, doi: 10.1093/bja/aei259.
+    .. [Oualha2014] M. Oualha et al., “Population pharmacokinetics and haemodynamic effects of norepinephrine
+            in hypotensive critically ill children,” British Journal of Clinical Pharmacology,
+            vol. 78, no. 4, pp. 886–897, 2014, doi: 10.1111/bcp.12412.
+    .. [Li2024] 
 
     """
 
     def __init__(self, Patient_characteristic: list, lbm: float,
                  drug: str, model: str = None, ts: float = 1,
-                 random: bool = False, x0: list = None,
+                 random: bool = False, x0: np.ndarray = None,
                  opiate=True, measurement="arterial"):
         """Init the class."""
         self.ts = ts
@@ -105,10 +113,13 @@ class CompartmentModel:
         height = Patient_characteristic[1]
         weight = Patient_characteristic[2]
         gender = Patient_characteristic[3]
+        self.u_endo = 0  # endogenous production of drug (used for Norepinephrine)
+        self.u_lag = 0  # lag in seconds
+        self.model = model
         if drug == "Propofol":
-            if model is None:
-                model = 'Schnider'
-            if model == 'Schnider':
+            if self.model is None:
+                self.model = 'Schnider'
+            if self.model == 'Schnider':
                 # see T. W. Schnider et al., “The Influence of Age on Propofol Pharmacodynamics,”
                 # Anesthesiology, vol. 90, no. 6, pp. 1502-1516., Jun. 1999, doi: 10.1097/00000542-199906000-00003.
 
@@ -142,7 +153,7 @@ class CompartmentModel:
                 w_cl3 = np.sqrt(np.log(1+cv_cl3**2))
                 w_ke0 = np.sqrt(np.log(1+cv_ke**2))
 
-            elif model == 'Marsh_initial' or model == 'Marsh_modified':
+            elif self.model == 'Marsh_initial' or self.model == 'Marsh_modified':
                 # see B. Marsh, M. White, N. morton, and G. N. C. Kenny,
                 # “Pharmacokinetic model Driven Infusion of Propofol in Children,”
                 # BJA: British Journal of Anaesthesia, vol. 67, no. 1, pp. 41–48, Jul. 1991, doi: 10.1093/bja/67.1.41.
@@ -154,7 +165,7 @@ class CompartmentModel:
                 cl2 = 0.112 * v1
                 cl3 = 0.042 * v1
 
-                if model == 'Marsh_initial':
+                if self.model == 'Marsh_initial':
                     ke0 = 0.26
                 else:
                     ke0 = 1.2
@@ -170,7 +181,7 @@ class CompartmentModel:
                 w_cl3 = np.sqrt(np.log(1+1**2))
                 w_ke0 = np.sqrt(np.log(1+1**2))
 
-            elif model == 'Schuttler':
+            elif self.model == 'Schuttler':
                 # J. Schüttler and H. Ihmsen, “Population Pharmacokinetics of Propofol: A Multicenter Study,”
                 # Anesthesiology, vol. 92, no. 3, pp. 727–738, Mar. 2000, doi: 10.1097/00000542-200003000-00017.
 
@@ -223,7 +234,7 @@ class CompartmentModel:
                 w_cl3 = np.sqrt(np.log(1+cv_cl3**2))
                 w_ke0 = np.sqrt(np.log(1+1**2))
 
-            elif model == 'Eleveld':
+            elif self.model == 'Eleveld':
                 # see D. J. Eleveld, P. Colin, A. R. Absalom, and M. M. R. F. Struys,
                 # “Pharmacokinetic–pharmacodynamic model for propofol for broad application in anaesthesia and sedation”
                 # British Journal of Anaesthesia, vol. 120, no. 5, pp. 942–959, mai 2018, doi:10.1016/j.bja.2018.01.018.
@@ -331,9 +342,9 @@ class CompartmentModel:
             w_ke2_map = 1.48
 
         elif drug == "Remifentanil":
-            if model is None:
-                model = 'Minto'
-            if model == 'Minto':
+            if self.model is None:
+                self.model = 'Minto'
+            if self.model == 'Minto':
                 #  see C. F. Minto et al., “Influence of Age and Gender on the Pharmacokinetics
                 # and Pharmacodynamics of Remifentanil: I. Model Development,”
                 # Anesthesiology, vol. 86, no. 1, pp. 10–23, Jan. 1997, doi: 10.1097/00000542-199701000-00004.
@@ -368,7 +379,7 @@ class CompartmentModel:
                 w_cl3 = np.sqrt(np.log(1+cv_cl3**2))
                 w_ke0 = np.sqrt(np.log(1+cv_ke**2))
 
-            elif model == 'Eleveld':
+            elif self.model == 'Eleveld':
                 # see D. J. Eleveld et al., “An Allometric Model of Remifentanil Pharmacokinetics and Pharmacodynamics,”
                 # Anesthesiology, vol. 126, no. 6, pp. 1005–1018, juin 2017, doi: 10.1097/ALN.0000000000001634.
 
@@ -439,19 +450,55 @@ class CompartmentModel:
             ke_map = 0.81
             w_ke_map = 0.41
         elif drug == 'Norepinephrine':
-            # see H. Beloeil, J.-X. Mazoit, D. Benhamou, and J. Duranteau, “Norepinephrine kinetics and dynamics
-            # in septic shock and trauma patients,” BJA: British Journal of Anaesthesia,
-            # vol. 95, no. 6, pp. 782–788, Dec. 2005, doi: 10.1093/bja/aei259.
+            if self.model is None:
+                self.model = 'Beloeil'  # set defaut value
+            if self.model == 'Beloeil':
+                # see H. Beloeil, J.-X. Mazoit, D. Benhamou, and J. Duranteau, “Norepinephrine kinetics and dynamics
+                # in septic shock and trauma patients,” BJA: British Journal of Anaesthesia,
+                # vol. 95, no. 6, pp. 782–788, Dec. 2005, doi: 10.1093/bja/aei259.
 
-            v1 = 8.840
-            cl1 = 2  # suppose SAPS II = 30 ()
+                v1 = 8.840
+                cl1 = 59.6 / 30  # suppose SAPS II = 30 ()
 
-            w_v1 = 1.63
-            w_cl1 = 0.974
+                w_v1 = 1.63
+                w_cl1 = 0.974
+            elif self.model == 'Oualha':
+                # see M. Oualha et al., “Population pharmacokinetics and haemodynamic effects of norepinephrine
+                # in hypotensive critically ill children,” British Journal of Clinical Pharmacology,
+                # vol. 78, no. 4, pp. 886–897, 2014, doi: 10.1111/bcp.12412.
+
+                v1 = 0.08 * weight
+                cl1 = 0.11 * weight**(3/4)
+                self.u_endo = 0.052 * weight**(3/4) / 60
+
+                w_v1 = 0
+                w_cl1 = 0.36
+                w_u_endo = 1.21
+            elif self.model == "Li":
+                # see Y. Li et al., “Population Pharmacokinetic Modelling of Norepinephrine
+                # in Healthy Volunteers Prior to and During General Anesthesia,” Clin Pharmacokinet,
+                # vol. 63, no. 11, pp. 1597–1608, Nov. 2024, doi: 10.1007/s40262-024-01430-y.
+
+                self._c_prop_base = 3.53
+                c_prop = self._c_prop_base  # assume a concentration of propofol of 3.53 mg/mL
+                self._prop_coeff = -3.57
+                cl1 = 2.1 * np.exp(-0.377/100*(age-35)) * (weight/70)**0.75   # L/min
+                v1 = 2.4 * (weight/70)  # L
+                cl2 = 0.6*(weight/70)**0.75  # L/min
+                v2 = 3.6 * (weight/70)  # L
+                self.u_endo = 497.7 * (weight/70)**0.75 / 60 / 1000  # Convert to µg/s
+                self.u_lag = 13.7 * (weight/70)**0.25
+
+                w_v1 = np.sqrt(np.log(1+(44.5/100)**2))
+                w_cl1 = np.sqrt(np.log(1+(10.6/100)**2))
+                w_cl2 = 0
+                w_v2 = np.sqrt(np.log(1+(40.4/100)**2))
+                w_prop_effect = np.sqrt(np.log(1+(266.2/100)**2))
+                w_u_endo = np.sqrt(np.log(1+(30.4/100)**2))
 
         if drug == 'Propofol':
             if random:
-                if model == 'Marsh':
+                if self.model == 'Marsh':
                     print("Warning: the standard deviation of the Marsh model are not know," +
                           " it is set to 100% for each variable")
                 v1 *= np.exp(np.random.normal(scale=w_v1))
@@ -515,15 +562,35 @@ class CompartmentModel:
             if random:
                 v1 *= np.exp(np.random.normal(scale=w_v1))
                 cl1 *= np.exp(np.random.normal(scale=w_cl1))
-            # drug amount transfer rates [1/min]
-            k10 = cl1 / v1
+                if self.model == 'Oualha' or self.model == "Li":
+                    self.u_endo *= np.exp(np.random.normal(scale=w_u_endo))
+                if self.model == "Li":
+                    v2 *= np.exp(np.random.normal(scale=w_v2))
+                    cl2 = np.exp(np.random.normal(scale=w_cl2))
+                    self._prop_coeff += np.random.normal(scale=w_prop_effect)  # additive uncertainty
+                    cl1 *= np.exp(self._prop_coeff*(c_prop - self._c_prop_base))
+            if self.model == 'Beloeil' or self.model == "Oualha":  # first order model
+                # drug amount transfer rates [1/min]
+                k10 = cl1 / v1
 
-            # Matrices system definition
-            A = np.array([-k10])/60  # 1/s
+                # Matrices system definition
+                A = np.array([-k10])/60  # 1/s
 
-            B = np.array([1/v1])  # 1/L
-            C = np.array([1])
-            D = np.array([0])
+                B = np.array([1/v1])  # 1/L
+                C = np.array([1])
+                D = np.array([0])
+            elif self.model == "Li":  # second order model
+                # drug amount transfer rates [1/min]
+                k10 = cl1 / v1
+                self._k12 = cl2 / v1
+                k21 = cl2 / v2
+
+                # Matrices system definition
+                A = np.array([[-(k10 + self._k12), self._k12],
+                              [k21, -k21]])/60  # 1/s
+                B = np.transpose(np.array([[1/v1, 0]]))  # 1/L
+                C = np.array([[1, 0]])
+                D = np.array([[0]])
 
         self.A_init = A
         self.B_init = B
@@ -537,8 +604,12 @@ class CompartmentModel:
         # init output
         if x0 is None:
             x0 = np.zeros(len(A))  # np.ones(len(A))*1e-3
+            if self.model == 'Oualha' or self.model == "Li":
+                x0 = np.ones(len(A)) * self.u_endo / cl1 * 60
         self.x = x0
         self.y = np.dot(C, self.x)
+
+        self.u_buffer = np.zeros(int(np.round(self.u_lag / self.ts))+1)
 
     def one_step(self, u: float) -> list:
         """Simulate one step of PK model.
@@ -549,7 +620,7 @@ class CompartmentModel:
         Parameters
         ----------
         u : float
-            Infusion rate (mg/s for Propofol, µg/s for Remifentanil).
+            Infusion rate (mg/s for Propofol, µg/s for Remifentanil and Norepinephrine).
 
         Returns
         -------
@@ -558,11 +629,13 @@ class CompartmentModel:
             for Remifentanil and Norepinephrine).
 
         """
-        self.x = self.discretize_sys.dynamics(None, self.x, u=u)  # first input is ignored
-        self.y = self.discretize_sys.output(None, self.x, u=u)  # first input is ignored
+        self.u_buffer = np.roll(self.u_buffer, -1)
+        self.u_buffer[-1] = u
+        self.x = self.discretize_sys.dynamics(None, self.x, u=self.u_buffer[0]+self.u_endo)  # first input is ignored
+        self.y = self.discretize_sys.output(None, self.x, u=self.u_buffer[0]+self.u_endo)  # first input is ignored
         return self.y
 
-    def full_sim(self, u: list, x0: Optional[np.array] = None) -> list:
+    def full_sim(self, u: np.ndarray, x0: Optional[np.ndarray] = None) -> list:
         """ Simulate PK model with a given input.
 
         Parameters
@@ -579,9 +652,26 @@ class CompartmentModel:
             (µg/mL for Propofol and ng/mL for Remifentanil and Norepinephrine).
 
         """
+        u = np.roll(u, int(np.round(self.u_lag / self.ts)))
+        u[:int(np.round(self.u_lag / self.ts))] = 0
         if x0 is None:
             x0 = np.zeros(len(self.A_init))
-        _, _, x = control.forced_response(self.discretize_sys, U=u, X0=x0, return_x=True)
+            if self.model == 'Oualha':
+                cl1 = - self.continuous_sys.A[0, 0]*60 * self.v1
+                x0 = np.ones(len(self.A_init)) * self.u_endo / cl1 * 60
+            elif self.model == 'Li':
+                cl1 = (- self.continuous_sys.A[0, 0]*60 - self._k12)*self.v1
+                x0 = np.ones(len(self.A_init)) * self.u_endo / cl1 * 60
+        t = np.ones_like(u)*self.ts
+        t[0] = 0
+        t = np.cumsum(t)
+        _, _, x = control.forced_response(
+            self.continuous_sys,
+            T=t,
+            U=u+self.u_endo,
+            X0=x0,
+            return_x=True
+        )
         return x
 
     def update_param_CO(self, CO_ratio: float):
@@ -635,5 +725,33 @@ class CompartmentModel:
 
         # Continuous system with blood concentration as output
         self.continuous_sys = control.ss(Anew, Bnew, self.continuous_sys.C, self.continuous_sys.D)
+        # Discretization of the system
+        self.discretize_sys = self.continuous_sys.sample(self.ts)
+
+    def update_Li_model_propo(self, c_prop: float):
+        """Update Norpineprhine Li PK model thanks to the concentration of propofol.
+
+        Update the cl1 parameter.
+
+        Parameters
+        ----------
+        c_prop : float
+            Plasmatique concentration of propofol (mg/mL).
+
+        Returns
+        -------
+        None.
+
+        """
+        prop_effect = np.exp(self._prop_coeff*(c_prop - self._c_prop_base))
+
+        Anew = copy.deepcopy(self.A_init)
+
+        cl1 = (- Anew[0, 0]*60 - self._k12)*self.v1
+        cl1_prop = cl1 * prop_effect
+        Anew[0, 0] = -(cl1_prop/self.v1 + self._k12)/60
+
+        # Continuous system with blood concentration as output
+        self.continuous_sys = control.ss(Anew, self.continuous_sys.B, self.continuous_sys.C, self.continuous_sys.D)
         # Discretization of the system
         self.discretize_sys = self.continuous_sys.sample(self.ts)
