@@ -47,6 +47,14 @@ autodoc_default_options = {
     'exclude-members': '__init__, __weakref__, __repr__, __str__'
 }
 
+# adding latex packages
+latex_elements = {
+    'preamble': r'''
+        \usepackage{xcolor}
+    ''',
+}
+
+
 nbsphinx_allow_errors = True  # Continue through Jupyter errors
 
 # Add any paths that contain templates here, relative to this directory.
