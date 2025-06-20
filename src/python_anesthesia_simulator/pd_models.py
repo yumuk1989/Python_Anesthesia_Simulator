@@ -1,5 +1,8 @@
-# Third party imports
+from typing import Optional
+
 import numpy as np
+import control
+import casadi as cas
 from matplotlib import pyplot as plt
 from matplotlib import cm
 
@@ -82,8 +85,8 @@ class BIS_model:
 
     """
 
-    def __init__(self, hill_model: str = 'Bouillon', hill_param: list = None,
-                 random: bool = False):
+    def __init__(self, hill_model: Optional[str] = 'Bouillon', hill_param: Optional[list] = None,
+                 random: Optional[bool] = False):
         """
         Init the class.
 
@@ -162,7 +165,7 @@ class BIS_model:
         self.hill_param = [self.c50p, self.c50r, self.gamma, self.beta, self.E0, self.Emax]
         self.c50p_init = self.c50p  # for blood loss modelling
 
-    def compute_bis(self, c_es_propo: float, c_es_remi: float = 0) -> float:
+    def compute_bis(self, c_es_propo: float, c_es_remi: Optional[float] = 0) -> float:
         """Compute BIS function from Propofol (and optionally Remifentanil) effect site concentration.
         If the BIS model chosen considers only the effect of propofol the effect site concentration of remifentanil is ignored.
 
@@ -181,18 +184,17 @@ class BIS_model:
         """
         if self.c50r == 0:
             interaction = c_es_propo / self.c50p
-            
-        elif self.c50r != 0: 
+
+        elif self.c50r != 0:
             up = c_es_propo / self.c50p
             ur = c_es_remi / self.c50r
             Phi = up/(up + ur + 1e-6)
             U_50 = 1 - self.beta * (Phi - Phi**2)
             interaction = (up + ur)/U_50
-                    
-        bis = self.E0 - self.Emax * interaction ** self.gamma / (1 + interaction ** self.gamma)
-        
-        return bis
 
+        bis = self.E0 - self.Emax * interaction ** self.gamma / (1 + interaction ** self.gamma)
+
+        return bis
 
     def update_param_blood_loss(self, v_ratio: float):
         """Update PK coefficient to mimic a blood loss.
@@ -217,7 +219,7 @@ class BIS_model:
         """
         self.c50p = self.c50p_init - 3/0.5*(1-v_ratio)
 
-    def inverse_hill(self, BIS: float, c_es_remi: float = 0) -> float:
+    def inverse_hill(self, BIS: float, c_es_remi: Optional[float] = 0) -> float:
         """Compute Propofol effect site concentration from BIS (and optionally Remifentanil effect site concentration if the BIS model chosen takes into acount interaction) .
 
         Parameters
@@ -270,7 +272,7 @@ class BIS_model:
             plt.grid(True)
             plt.ylim(0, 100)
             plt.show()
-            
+
         elif self.c50r != 0:
             cer = np.linspace(0, 8, 9)
             cep = np.linspace(0, 12, 13)
@@ -322,7 +324,12 @@ class TOL_model():
 
     """
 
-    def __init__(self, model: str = 'Bouillon', model_param: list = None, random: bool = False):
+    def __init__(
+            self,
+            model: Optional[str] = 'Bouillon',
+            model_param: Optional[list] = None,
+            random: Optional[bool] = False
+    ):
         """
         Init the class.
 
@@ -400,7 +407,7 @@ class TOL_model():
         plt.show()
 
 
-class Hemo_PD_model():
+class Hemo_simple_PD_model():
     """Modelize the effect of Propofol, Remifentanil, Norepinephrine on Mean Arterial Pressure and Cardiac Output.
 
     Use the addition of sigmoid curve to model the effect of each drugs on MAP and CO.
@@ -728,3 +735,406 @@ class Hemo_PD_model():
         self.co = self.co_base + co_nore + co_propo + co_remi
 
         return self.map, self.co
+
+
+class Hemo_meca_PD_model:
+    r""" This class implement the mechanically based model of Haemodynamic proposed in Su2023_.
+
+    Particularly, the Haemodynamic is considered to be a dynamical system with the following dynamic:
+
+    .. math:: \dot{TPR} = k_{in\_TPR} RMAP^{FB} (1+EFF_{prop\_TPR}) - k_{out} TPR (1 - EFF_{remi\_TPR})
+    .. math:: \dot{SV^* }= k_{in\_SV} RMAP^{FB} (1+EFF_{prop\_SV}) - k_{out} SV^* (1 - EFF_{remi\_SV})
+    .. math:: \dot{HR}^* = k_{in\_HR} RMAP^{FB} - k_{out} HR^* (1 - EFF_{remi\_HR})
+
+    Where TPR stand for total peripheral resistance, SV stroke volume, and HR the heart rate. The different effect are sigmoid function depending on propofol and remifentanil concentration.
+
+
+
+    """
+
+    def __init__(self,
+                 age: float,
+                 ts: float,
+                 model: str = 'Su',
+                 nore_model: str = 'Beloeil',
+                 random: bool = False,
+                 hr_base: float = None,
+                 sv_base: float = None,
+                 map_base: float = None,
+                 ):
+        """
+        Initialize the class.
+
+        Returns
+        -------
+        None.
+
+        """
+        self.ts = ts
+
+        if model == 'Su':
+            self.sv_base = 82.2
+            self.hr_base = 56.1
+            self.tpr_base = 0.0163
+            self.k_out = 0.072 / 60  # (1/s)
+            self.k_in_tpr = self.k_out * self.tpr_base
+            self.k_in_sv = self.k_out * self.sv_base
+            self.k_in_hr = self.k_out * self.hr_base
+            self.fb = -0.661
+            self.hr_sv = 0.312
+            self.k_ltde = 0.067 / 60  # (1/s)
+            self.ltde_sv = 0.0899
+            self.ltde_hr = 0.121
+            self.c50_propo_tpr = 3.21  # (µg/ml)
+            self.emax_propo_tpr = -0.778  # (%)
+            self.gamma_propo_tpr = 1.83
+            self.c50_propo_sv = 0.44  # (µg/ml)
+            emax_propo_sv_type = -0.154
+            self.emax_propo_sv = emax_propo_sv_type * np.exp(0.0333 * (age - 35))
+            self.age_max_sv = 0.033
+            self.c50_remi_tpr = 4.59  # (ng/ml)
+            self.emax_remi_tpr = -1
+            self.sl_remi_hr = 0.0327  # (ng/ml)
+            self.sl_remi_sv = 0.0581  # (ng/ml)
+            self.int_hr = -0.0119  # (ng/ml)
+            self.c50_int_hr = 0.20  # (µg/ml)
+            self.int_tpr = 1
+            self.int_sv = -0.212  # (ng/ml)
+            if hr_base is not None:
+                self.hr_base = hr_base / (1 + self.ltde_hr)
+                self.sv_base = sv_base / (1 + self.ltde_sv)
+                self.tpr_base = map_base/(hr_base * sv_base)
+                self.k_in_tpr = self.k_out * self.tpr_base
+                self.k_in_sv = self.k_out * self.sv_base
+                self.k_in_hr = self.k_out * self.hr_base
+
+            # uncertainties values
+            self.w_block1_mu = [0, 0, 0]
+            self.w_block1_cov = [
+                [0.0328, -0.0244, 0],
+                [-0.0244, 0.0528, -0.0233],
+                [0, -0.0233, 0.0242]
+            ]
+
+            self.w_block2_mu = [0, 0]
+            self.w_block2_cov = [[0.00382, 0.00329], [0.00329, 0.00868]]
+
+            self.w_c50_propo_tpr = np.sqrt(0.44)
+            self.w_emax_remi_tpr = np.sqrt(0.449)
+        else:
+            raise ValueError("only Su is implemented as model")
+        if nore_model == 'Beloeil':
+            # see H. Beloeil, J.-X. Mazoit, D. Benhamou, and J. Duranteau, “Norepinephrine kinetics and dynamics
+            # in septic shock and trauma patients,” BJA: British Journal of Anaesthesia,
+            # vol. 95, no. 6, pp. 782–788, Dec. 2005, doi: 10.1093/bja/aei259.
+            self.emax_nore_map = 98.7
+            self.c50_nore_map = 7.04
+            self.gamma_nore_map = 1.8
+            w_emax_nore_map = 0
+            w_c50_nore_map = 1.64
+            w_gamma_nore_map = 0
+        elif nore_model == 'Oualha':
+            # see M. Oualha et al., “Population pharmacokinetics and haemodynamic effects of norepinephrine
+            # in hypotensive critically ill children,” British Journal of Clinical Pharmacology,
+            # vol. 78, no. 4, pp. 886–897, 2014, doi: 10.1111/bcp.12412.
+            self.emax_nore_map = 32
+            self.c50_nore_map = 4.11
+            self.gamma_nore_map = 1
+            w_emax_nore_map = 0
+            w_c50_nore_map = 0.09
+            w_gamma_nore_map = 0
+
+        if random:
+            # compute intercorrelated uncertainties
+            eta_values_block1 = np.random.multivariate_normal(self.w_block1_mu, self.w_block1_cov, size=1)[0]
+            eta_values_block2 = np.random.multivariate_normal(self.w_block2_mu, self.w_block2_cov, size=1)[0]
+
+            # lognormal distribution
+            self.tpr_base *= np.exp(eta_values_block1[0])
+            self.sv_base *= np.exp(eta_values_block1[1])
+            self.hr_base *= np.exp(eta_values_block1[2])
+            self.c50_propo_tpr *= np.exp(np.random.normal(0, self.w_c50_propo_tpr))
+            # normal distribution
+            self.emax_remi_tpr += np.random.normal(0, self.w_emax_remi_tpr)
+            self.sl_remi_hr += eta_values_block2[0]
+            self.sl_remi_sv += eta_values_block2[1]
+
+            self.emax_nore_map *= np.exp(np.random.normal(0, scale=w_emax_nore_map))
+            self.c50_nore_map *= np.exp(np.random.normal(0, scale=w_c50_nore_map))
+            self.gamma_nore_map *= np.exp(np.random.normal(0, scale=w_gamma_nore_map))
+
+        self.x = np.array([
+            self.tpr_base,
+            self.sv_base,
+            self.hr_base,
+            self.sv_base*self.ltde_sv,
+            self.hr_base*self.ltde_hr,
+        ])
+
+        self.x_no_nore = np.array([
+            self.tpr_base,
+            self.sv_base,
+            self.hr_base,
+            self.sv_base*self.ltde_sv,
+            self.hr_base*self.ltde_hr,
+        ])
+
+        self.abase_sv = self.sv_base * (1 + self.ltde_sv)
+        self.abase_hr = self.hr_base * (1 + self.ltde_hr)
+        self.base_map = self.tpr_base * self.abase_sv * self.abase_hr
+
+        def continuous_dynamic_sys(t, x, u, params=None):
+            return self.continuous_dynamic(x, u)
+
+        def output_function_sys(t, x, u, params=None):
+            return self.output_function(x)
+
+        self.hemo_system = control.NonlinearIOSystem(
+            continuous_dynamic_sys,
+            output_function_sys,
+            inputs=2,
+            outputs=5,
+            states=5,
+        )
+
+        self.previous_cp_propo = 0
+        self.previous_cp_remi = 0
+
+    def continuous_dynamic(
+            self,
+            x: np.ndarray,
+            u: np.ndarray
+    ) -> np.ndarray:
+        """Define the continuous dynamic of the haemodynamic system.
+
+        For implementation details see supplementary material nb 6 of the paper of Su and co-authors.
+
+        Parameters
+        ----------
+        x : np.ndarray
+            state array composed of tpr, sv, hr, ltde_sv, ltde_hr.
+        u: np.ndarray
+            u = [cp_propo, cp_remi], plasma concentration of propofol (µg/ml) and remifentanil (ng/ml).
+
+        Returns
+        -------
+        d x / dt : np.ndarray
+            temporal derivative of the state array.
+        """
+
+        # compute drug effect
+        cp_propo = u[0]
+        cp_remi = u[1]
+
+        eff_propo_tpr = (self.emax_propo_tpr + self.int_tpr * fsig(cp_remi, self.c50_remi_tpr, 1)) * \
+            fsig(cp_propo, self.c50_propo_tpr, self.gamma_propo_tpr)
+        eff_remi_sv = (self.sl_remi_sv + self.int_sv * fsig(cp_propo, self.c50_propo_sv, 1)) * cp_remi
+        eff_remi_hr = (self.sl_remi_hr + self.int_hr * fsig(cp_propo, self.c50_int_hr, 1)) * cp_remi
+        eff_propo_sv = self.emax_propo_sv * fsig(cp_propo, self.c50_propo_sv, 1)
+        eff_remi_tpr = self.emax_remi_tpr * fsig(cp_remi, self.c50_remi_tpr, 1)
+
+        # compute apparent values
+        dsv = x[1] + x[3]
+        dhr = x[2] + x[4]
+
+        a_sv = dsv * (1 - self.hr_sv * np.log(dhr/self.abase_hr))
+        a_map = a_sv * dhr * x[0]
+
+        rmap = a_map/self.base_map
+
+        sv = x[1]
+        hr = x[2]
+        tpr_dot = self.k_in_tpr * rmap**self.fb * (1 + eff_propo_tpr) - self.k_out*x[0]*(1 - eff_remi_tpr)
+        sv_dot_star = self.k_in_sv * rmap**self.fb * (1 + eff_propo_sv) - self.k_out*sv*(1 - eff_remi_sv)
+        hr_dot_star = self.k_in_hr * rmap**self.fb - self.k_out*hr*(1 - eff_remi_hr)
+
+        if u[0] > 0:  # apply the time dependant function only if anesthesia as started.
+            ltde_sv_dot = -self.k_ltde * x[3]
+            ltde_hr_dot = -self.k_ltde * x[4]
+        else:
+            ltde_sv_dot = 0
+            ltde_hr_dot = 0
+
+        return np.array([tpr_dot, sv_dot_star, hr_dot_star, ltde_sv_dot, ltde_hr_dot])
+
+    def output_function(self, x: np.ndarray) -> np.ndarray:
+        """_summary_
+
+        Parameters
+        ----------
+        x : np.ndarray
+            state of the system
+
+        Returns
+        -------
+        np.ndarray
+            Total peripheral resistance (mmHg min/ mL), Stroke volume (ml),
+            heart rate (beat / min), mean arterial pressure (mmHg),
+            cardiac output (L/min)
+        """
+        tpr = x[0]
+        sv = x[1] + x[3]
+        hr = x[2] + x[4]
+        sv = sv * (1 - self.hr_sv * np.log(hr/self.abase_hr))
+        map = tpr * sv * hr
+        co = hr * sv / 1000  # fro mL/min to L/min
+        return np.array([tpr, sv, hr, map, co])
+
+    def nore_map_effect(self, cp_nore: float):
+        """Compute Norepinephrine effect on MAP.
+
+        Parameters
+        ----------
+        c_nore : float
+            Concentration of Norepinephrine (ng/mL)
+        """
+
+        return self.emax_nore_map*fsig(cp_nore, self.c50_nore_map, self.gamma_nore_map)
+
+    def one_step(
+            self,
+            cp_propo: float = 0,
+            cp_remi: float = 0,
+            cp_nore: float = 0,
+    ) -> np.ndarray:
+        """Compute one step time of the hemodynamic system.
+
+        It use Runge Kutta 4 to compute the non-linear integration.
+
+        Parameters
+        ----------
+        c_propo : float
+            current plasma concentration of propofol (µg/ml).
+        cp_remi : float
+            current plasma concentration of remifentanil (ng/ml).
+        cp_nore : float
+            current plasma concentration of norepinephrine (ng/ml). 
+        """
+        # run computation for model with nore effect
+        results = control.input_output_response(
+            self.hemo_system,
+            T=np.array([0, self.ts]),
+            U=np.array(
+                [[self.previous_cp_propo, cp_propo],
+                 [self.previous_cp_remi, cp_remi]]
+            ),
+            X0=self.x,
+            return_x=True,
+        )
+        self.x = results.x[:, 1]
+
+        # run computation for model without nore effect
+        results_no_nore = control.input_output_response(
+            self.hemo_system,
+            T=np.array([0, self.ts]),
+            U=np.array(
+                [[self.previous_cp_propo, cp_propo],
+                 [self.previous_cp_remi, cp_remi]]
+            ),
+            X0=self.x_no_nore,
+            return_x=True,
+        )
+        self.x_no_nore = results_no_nore.x[:, 1]
+
+        # add effect of Norepinephrine on TPR
+        map_no_nore = results_no_nore.y[3, 1]
+        map_previous_nore = results.y[3, 1]
+        self.x[0] = self.x[0] * (map_no_nore + self.nore_map_effect(cp_nore)) / map_previous_nore
+
+        self.previous_cp_propo = cp_propo
+        self.previous_cp_remi = cp_remi
+
+        return self.output_function(self.x)  # tpr, sv, hr, map, co
+
+    def full_sim(self,
+                 cp_propo: np.ndarray,
+                 cp_remi: np.ndarray,
+                 cp_nore: np.ndarray,
+                 x0: Optional[np.ndarray] = None
+                 ) -> np.ndarray:
+        """ Simulate hemodynamic model with a given input.
+
+        Parameters
+        ----------
+        c_propo : np.ndarray
+            list of plasma concentration of propofol (µg/ml).
+        cp_remi : np.ndarray
+            list of plasma concentration of remifentanil (ng/ml).
+        cp_nore : np.ndarray
+            list of plasma concentration of norepinephrine (ng/ml). 
+        x0 : np.ndarray, optional
+            Initial state. The default is None.
+
+        Returns
+        -------
+        np.ndarray
+            List of the output value during the simulation.
+        """
+        if len(cp_remi) != len(cp_propo) or len(cp_remi) != len(cp_nore):
+            raise ValueError("inputs must have the same lenght")
+        if x0 is not None:
+            self.x = x0
+            self.x_no_nore = x0
+
+        y_output = np.zeros((len(cp_propo), 5))
+        for index in range(len(cp_propo)):
+            y_output[index, :] = self.one_step(cp_propo, cp_remi, cp_nore)
+
+        return y_output
+
+    def state_at_equilibrium(
+            self,
+            cp_propo_eq: float = 0,
+            cp_remi_eq: float = 0,
+            cp_nore_eq: float = 0,
+            x0: np.ndarray = None,
+    ) -> np.ndarray:
+        """Solve the problem f(x,u)=0 for the continuous dynamique with a given u.
+
+        Parameters
+        ----------
+        c_propo : float
+            plasma concentration of propofol at equilibrium (µg/ml).
+        cp_remi : float
+            plasma concentration of remifentanil  at equilibrium (ng/ml).
+        cp_nore : float
+            plasma concentration of norepinephrine  at equilibrium (ng/ml).
+        x0 : np.ndarray, optional
+            Initial state. The default is None.
+
+        Returns
+        -------
+        np.ndarray
+            List of the output value at equilibrium.
+        """
+
+        if x0 is None:
+            x0 = self.x
+
+        # solve equilibrium without nore
+        x = cas.MX.sym('x', 5)
+        dx = cas.vertcat(*self.continuous_dynamic(x, [cp_propo_eq, cp_remi_eq]))
+        F_root = cas.rootfinder('F_root', 'newton', {'x': x, 'g': dx})
+        sol = F_root(x0=x0)
+
+        x_no_nore = sol['x'].full().flatten()
+
+        if cp_nore_eq > 0:
+            output_no_nore = self.output_function(x_no_nore)
+            map_eq = output_no_nore[3] + self.nore_map_effect(cp_nore_eq)
+            # solve equilibrium with nore
+            x = cas.MX.sym('x', 5)
+            map_prob = self.output_function(x)[3]
+            dx = cas.vertcat(*self.continuous_dynamic(x, [cp_propo_eq, cp_remi_eq]))
+            dx[0] += (1 - map_prob/map_eq)  # add derivative if map not at map_eq
+            F_root = cas.rootfinder('F_root', 'newton', {'x': x, 'g': dx})
+            sol = F_root(x0=x0)
+
+            x_eq = sol['x'].full().flatten()
+        else:
+            x_eq = x_no_nore
+
+        output = self.output_function(x_eq)
+        self.xeq = x_eq
+
+        return output
