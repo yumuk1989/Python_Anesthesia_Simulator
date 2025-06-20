@@ -57,33 +57,6 @@ Multiple studies have been conducted to estimate the parameters of the PK model 
 
    Simulated propofol concentration for a 3-compartment model.
 
-..
-
-    *Remark:* The 3-compartment model of propofol and remifentanil is often presented with state representing drug mass rather than concentration. In this case the model is given by
-
-    .. math::
-
-        \begin{pmatrix}
-        \dot{m}_1(t) \\ \dot{m}_2 (t)\\ \dot{m}_3(t)
-        \end{pmatrix}
-        =
-        \begin{pmatrix}
-        -(k_{10} + k_{12} + k_{13}) & \textcolor{blue}{k_{21}} & \textcolor{blue}{k_{31}} \\
-        \textcolor{blue}{k_{12}} & -k_{21} & 0\\
-        \textcolor{blue}{k_{13}} & 0 & -k_{31}
-        \end{pmatrix}
-        \begin{pmatrix}
-        m_1 (t)\\ m_2 (t)\\ m_3(t)
-        \end{pmatrix}
-        +
-        \begin{pmatrix}
-        \frac{1}{V_1} \\ 0\\ 0
-        \end{pmatrix}
-        u(t)
-
-    where :math:`m_i` for :math:`i \in \{1,2,3\}` are the mass of drug in each compartment. Note that both models are equivalent.
-
-
 Norepinephrine
 ---------------
 Norepinephrine is commonly used during anesthesia to higher blood pressure. It is an endogenous substance, which means that it is naturally produced
