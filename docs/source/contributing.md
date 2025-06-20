@@ -75,21 +75,6 @@ Contributions to the project are made through GitHub pull requests. The steps to
 
 Your pull request will be reviewed by the maintainers. They may request changes or provide feedback. Please be responsive to their comments and suggestions.
 
-The following steps can be taken to check locally changes made to the **documentation**:
-
-1. Install documentation dependencies
-   ```bash
-   pip install -r docs/requirements
-   ```
-2. Generate the html pages of the documentation
-   ```bash
-   cd docs
-   make html
-   ```
-   Eventually the documentation can be regenerated from scratch by cleaning the build folder with ```make clean``` 
-3. Look at the results by opening the html files located in ```docs/build/html/```.
-
-
 ## Conventions
 
 Conventions are important to ensure a consistent and high-quality codebase. Please follow these conventions when contributing to the project.
