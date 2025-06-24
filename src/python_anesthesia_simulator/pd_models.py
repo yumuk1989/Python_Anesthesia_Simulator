@@ -30,6 +30,7 @@ class BIS_model:
     hill_model : str, optional
         'Bouillon' [Bouillon2004], considers the synergistic effect of remifentanil.
         'Vanluchene' [Vanluchene2004], do not consider the synergistic effect of remifentanil.
+        'Eleveld' [Eleveld2018], do not consider the synergistic effect of remifentanil.
         Ignored if hill_param is specified.
         Default is 'Bouillon'.
     hill_param : list, optional
@@ -67,6 +68,10 @@ class BIS_model:
         list [c50p_BIS, c50r_BIS, gamma_BIS, beta_BIS, E0_BIS, Emax_BIS]
     c50p_init : float
         Initial value of c50p, used for blood loss modelling.
+    hill_model : str
+        'Bouillon' [Bouillon2004], considers the synergistic effect of remifentanil.
+        'Vanluchene' [Vanluchene2004], do not consider the synergistic effect of remifentanil.
+        'Eleveld' [Eleveld2018], do not consider the synergistic effect of remifentanil.    
 
     References
     ----------
@@ -77,12 +82,15 @@ class BIS_model:
     .. [Vanluchene2004]  A. L. G. Vanluchene et al., “Spectral entropy as an electroencephalographic measure
             of anesthetic drug effect: a comparison with bispectral index and processed midlatency auditory evoked
             response,” Anesthesiology, vol. 101, no. 1, pp. 34–42, Jul. 2004,
-            doi: 10.1097/00000542-200407000-00008.        
+            doi: 10.1097/00000542-200407000-00008.
+    .. [Eleveld2018] D. J. Eleveld, P. Colin, A. R. Absalom, and M. M. R. F. Struys,
+            “Pharmacokinetic–pharmacodynamic model for propofol for broad application in anaesthesia and sedation”
+            British Journal of Anaesthesia, vol. 120, no. 5, pp. 942–959, mai 2018, doi:10.1016/j.bja.2018.01.018.        
 
     """
 
     def __init__(self, hill_model: str = 'Bouillon', hill_param: list = None,
-                 random: bool = False):
+                 random: bool = False, **kwargs):
         """
         Init the class.
 
@@ -91,6 +99,9 @@ class BIS_model:
         None.
 
         """
+        
+        self.hill_model = hill_model
+        
         if hill_param is not None:  # Parameter given as an input
             self.c50p = hill_param[0]
             self.c50r = hill_param[1]
@@ -99,7 +110,7 @@ class BIS_model:
             self.E0 = hill_param[4]
             self.Emax = hill_param[5]
 
-        elif hill_model == 'Bouillon':
+        elif self.hill_model == 'Bouillon':
             # See [Bouillon2004] T. W. Bouillon et al., “Pharmacodynamic Interaction between Propofol and Remifentanil
             # Regarding Hypnosis, Tolerance of Laryngoscopy, Bispectral Index, and Electroencephalographic
             # Approximate Entropy,” Anesthesiology, vol. 100, no. 6, pp. 1353–1372, Jun. 2004,
@@ -120,7 +131,7 @@ class BIS_model:
             cv_E0 = 0
             cv_Emax = 0
 
-        elif hill_model == 'Vanluchene':
+        elif self.hill_model == 'Vanluchene':
             # See [Vanluchene2004]  A. L. G. Vanluchene et al., “Spectral entropy as an electroencephalographic measure
             # of anesthetic drug effect: a comparison with bispectral index and processed midlatency auditory evoked
             # response,” Anesthesiology, vol. 101, no. 1, pp. 34–42, Jul. 2004,
@@ -140,6 +151,36 @@ class BIS_model:
             cv_beta = 0
             cv_E0 = 0.04
             cv_Emax = 0.11
+            
+        elif self.hill_model == 'Eleveld':
+           # [Eleveld2018] D. J. Eleveld, P. Colin, A. R. Absalom, and M. M. R. F. Struys,
+           # “Pharmacokinetic–pharmacodynamic model for propofol for broad application in anaesthesia and sedation”
+           # British Journal of Anaesthesia, vol. 120, no. 5, pp. 942–959, mai 2018, doi:10.1016/j.bja.2018.01.018.
+           
+           age = kwargs.get('age', -1)
+           if age < 0:
+               raise ValueError("Age is missing for the Eleveld PD model for propofol.")
+               
+           # reference patient
+           AGE_ref = 35
+           
+           # function used in the model
+           def faging(x): return np.exp(x * (age - AGE_ref))
+
+           self.c50p = 3.08*faging(-0.00635)
+           self.c50r = 0
+           self.gamma = 1.89
+           self.beta = 0
+           self.E0 = 93
+           self.Emax = self.E0
+
+           # coefficient of variation
+           cv_c50p = 0.523
+           cv_c50r = 0
+           cv_gamma = 0
+           cv_beta = 0
+           cv_E0 = 0
+           cv_Emax = 0     
 
         if random and hill_param is None:
             # estimation of log normal standard deviation
@@ -178,8 +219,14 @@ class BIS_model:
             Bis value.
 
         """
+        
         if self.c50r == 0:
             interaction = c_es_propo / self.c50p
+            if self.hill_model == 'Eleveld':  
+                if c_es_propo <= self.c50p:
+                    self.gamma = 1.89
+                else:
+                    self.gamma = 1.47
             
         elif self.c50r != 0: 
             up = c_es_propo / self.c50p
@@ -191,7 +238,7 @@ class BIS_model:
         bis = self.E0 - self.Emax * interaction ** self.gamma / (1 + interaction ** self.gamma)
         
         return bis
-
+        
 
     def update_param_blood_loss(self, v_ratio: float):
         """Update PK coefficient to mimic a blood loss.
@@ -232,9 +279,19 @@ class BIS_model:
             Effect site Propofol concentration (µg/mL).
 
         """
-
+        
         if self.c50r == 0:
+            # If the Eleveld model is selected select the slope according to 
+            # the value of the BIS. Ce50 is the value at which 50% of the Emax
+            # is reached. So I check this condition on the BIS.
+            if self.hill_model == 'Eleveld':  
+                if BIS >= (self.E0-(self.Emax/2)):
+                    self.gamma = 1.89
+                else:
+                    self.gamma = 1.47
+                    
             cep = self.c50p * ((self.E0-BIS)/(self.Emax-self.E0+BIS))**(1/self.gamma)
+            
         elif self.c50r != 0:
             temp = (max(0, self.E0-BIS)/(self.Emax-self.E0+BIS))**(1/self.gamma)
             Yr = c_es_remi / self.c50r
@@ -253,7 +310,7 @@ class BIS_model:
                 cep = real_root*self.c50p
             except Exception as e:
                 print(f'bug: {e}')
-
+                            
         return cep
 
     def plot_surface(self):
@@ -261,7 +318,14 @@ class BIS_model:
 
         if self.c50r == 0:
             cep = np.linspace(0, 16, 17)
-            bis = self.compute_bis(cep)
+            if self.hill_model == 'Eleveld':
+                bis = np.linspace(0, 16, 17)
+                i = 0;
+                for value in cep:
+                    bis[i] = self.compute_bis(value)
+                    i = i+1
+            else:
+                bis = self.compute_bis(cep)
             plt.figure()
             plt.plot(cep, bis)
             plt.xlabel('Propofol Ce [μg/mL]')
@@ -285,6 +349,8 @@ class BIS_model:
             fig.colorbar(surf, shrink=0.5, aspect=8)
             ax.view_init(20, 60, 0)
             plt.show()
+            
+        
 
 
 class TOL_model():
