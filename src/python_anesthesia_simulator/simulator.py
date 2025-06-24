@@ -563,18 +563,18 @@ class Patient:
 
     def init_dataframe(self):
         r"""Initilize the dataframe variable with the following columns:
-                                                                - 'Time': Simulation time (s)
-                                                                - 'BIS': Bispectral Index
-                                                                - 'TOL': Tolerance level
-                                                                - 'MAP': Mean Arterial Pressure (mmHg)
-                                                                - 'CO': Cardiac Output (L/min)
-                                                                - 'u_propo': Propofol infusion rate (mg/s)
-                                                                - 'u_remi': Remifentanil infusion rate (µg/s)
-                                                                - 'u_nore': Norepinephrine infusion rate (µg/s)
-                                                                - 'x_propo_1' to 'x_propo_6': States of the propofol PK model
-                                                                - 'x_remi_1' to 'x_remi_5': States of the remifentanil PK model
-                                                                - 'x_nore': State of the norepinephrine PK model
-                                                                - 'blood_volume': Blood volume (L)
+            - 'Time': Simulation time (s)
+            - 'BIS': Bispectral Index
+            - 'TOL': Tolerance level
+            - 'MAP': Mean Arterial Pressure (mmHg)
+            - 'CO': Cardiac Output (L/min)
+            - 'u_propo': Propofol infusion rate (mg/s)
+            - 'u_remi': Remifentanil infusion rate (µg/s)
+            - 'u_nore': Norepinephrine infusion rate (µg/s)
+            - 'x_propo_1' to 'x_propo_6': States of the propofol PK model
+            - 'x_remi_1' to 'x_remi_5': States of the remifentanil PK model
+            - 'x_nore': State of the norepinephrine PK model
+            - 'blood_volume': Blood volume (L)
         """
         self.Time = 0
         column_names = ['Time',  # time
@@ -626,11 +626,11 @@ class Patient:
             Initial state of the norepinephrine PK model. The default is zeros.
 
         Requirements
-                                                                ------------
-                                                                - At least one of `u_propo`, `u_remi`, or `u_nore` must be provided.
-                                                                - All input arrays (`u_propo`, `u_remi`, `u_nore`) must have the same length.
-                                                                                If any of them is not provided, it will be automatically filled with zeros to match the length of the others.
-                                                                - The simulation duration is determined by the length of the input arrays.
+        ------------
+        - At least one of `u_propo`, `u_remi`, or `u_nore` must be provided.
+        - All input arrays (`u_propo`, `u_remi`, `u_nore`) must have the same length.
+          If any of them is not provided, it will be automatically filled with zeros to match the length of the others.
+        - The simulation duration is determined by the length of the input arrays.
 
         Returns
         -------
