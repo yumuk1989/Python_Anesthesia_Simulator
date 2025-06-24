@@ -46,8 +46,7 @@ class BIS_model:
         The default is None.
     random : bool, optional
         Add uncertainties in the parameters. Ignored if hill_param is specified. The default is False.
-    ts : float, optional
-        Sampling time, in s. The default is 1.
+
 
     Attributes
     ----------
