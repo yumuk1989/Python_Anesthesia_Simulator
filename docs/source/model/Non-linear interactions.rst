@@ -15,29 +15,32 @@ Blood loss modelling
 ----------------------
 When important, blood loss can be considered as a shock situation for the patient. It strongly affect the haemodynamic system and also all the inner working of multiple organs in the body. Regarding anesthesia modelling, blood loss is known to change the distribution of drugs in the body (Johnson2001_, Johnson2003_; Kurita2009_). In fact, the reduced volume of blood will affect the PK system of the drugs. Thus, during a blood loss simulation the blood volume (first compartment volume) is updated in all the PK models. For this, we consider the volume of the first compartment of propofol as the "true" volume of blood in the patient body and update the other PK model according to the fraction of the remaining blood volume over the initial blood volume.
 
-In addition to the effect of blood loss in the PK models, the crude assumption that MAP and CO are proportional to the blood volume is made in the simulator. The transient behavior of bleeding and transfusion does not verify this assumption, however the steady-state experimental values do agree with it (Rinehart2011_). A more complex hemodynamic model should be integrated to obtain better results. The simulator also takes into account the fact that the BIS pharmacodynamics depends on bleeding (Kurita2009_) leading to a deeper hypnosis state, again value for this dependencies have been chosen to match the experimentals results of the paper.
+In addition to the effect of blood loss in the PK models, the crude assumption that SV is proportional to the blood volume is made in the simulator. The transient behavior of bleeding and transfusion does not verify this assumption, however the steady-state experimental values do agree with it (Rinehart2011_). Thus, in case of bleeding a term is added to the dynamic equations of SV such that it converge to the wanted value. The equations are the following:
+
+.. math::
+    SV_{wanted}(t) = SV_{no\_bleeding}(t) \frac{V_{1,p}(t)}{V_{1,p}(0)}
+
+where :math:`SV_{no\_bleeding}(t)` is the stroke volume computed without considering bleeding, and :math:`V_{1,p}(t)` is the volume of the first compartment of propofol PK model at time :math:`t`. The dynamic of SV in the system including the effect of bleeding is then given by:
+
+.. math::
+    \begin{align}
+    \dot{SV}^*(t) &=  \frac{k_{in\_SV}}{RMAP(t)^{FB}}(1 + EFF_{prop\_SV}(t)) \\
+    & - k_{out} SV^*(t) (1 - EFF_{remi\_SV}(t)) \\
+    & \textcolor{blue}{ + k_{bleeding}(SV_{wanted}(t)- SV(t))}
+    \end{align}
+
+A more complex hemodynamic model should be integrated to obtain better results. The simulator also takes into account the fact that the BIS pharmacodynamics depends on bleeding (Kurita2009_) leading to a deeper hypnosis state, again value for this dependencies have been chosen to match the experimentals results of the paper.
 
 In case of bleeding, considering :math:`\rho = \frac{V_{1,p}(t)}{V_{1,p}(0)}` with :math:`V_{1,p}(0)` the initial first compartment volume of propofol PK model and :math:`V_{1,p}(t)` the volume updated thanks to the rates of blood loss given by the user, the equations are the following:
 
-.. raw:: html
-
-    <div style="text-align: left">
-    \[
-    V_1(t) = \rho V_1(0)
-    \]
-    \[
-    MAP(t) = \rho MAP^*(t)
-    \]
-    \[
-    CO(t) = \rho CO^*(t)
-    \]
-    \[
-    C_{50p,BIS}(t) = C_{50p,BIS}(0) - 6(1-\rho)
-    \]
-    </div>
+.. math:: 
+    \begin{align}
+    V_1(t) &= \rho V_1(0) \\
+    C_{50p,BIS}(t) &= C_{50p,BIS}(0) - 6(1-\rho)
+    \end{align}
 
 
-where :math:`V_1(t)` is the volume of the first compartment of all drug PK model, :math:`MAP^*(t)` and :math:`CO^*(t)` the mean arterial pressure and cardiac output without considering blood loss and :math:`C_{50p,BIS}(t)` the half effect concentration of propofol on BIS. 
+where :math:`V_1(t)` is the volume of the first compartment of all drug PK model and :math:`C_{50p,BIS}(t)` the half effect concentration of propofol on BIS. 
 
 Note that with this modelling approach, because the PK model is affected both by the loss of blood volume and reduction of cardiac output, the time constant of the system are not importantly affected. However, as the blood volume is reduced and the patient sensitivity to propofol increase, the BIS will decrease quickly if the rates of propofol is not updated.
 

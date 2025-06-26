@@ -153,7 +153,7 @@ An illustration of this model is given below:
 The Norepinephrine effect ahve not been yet included in this dynamical model. However, it exists direct pharmacodynamic models, linking the blood concentration of norepinephrine to the increase of MAP ([Beloeil2005_], [Oualha2014_]) using a sigmoid function. As it is known that norepinephrine has a direct effect on TPR, we considered that the norepinephrine affect MAP through TPR to reach the effect identified in the literature. To be explicite, when doing the simulation with norepinephrine, two different system are simulated: one with olny the effect of propofol and remifentanil, and one with the effect of norepinephrine. The difference between the two is that the dynamic of TPR is modified to reach the desired MAP. Particularly:
 
 .. math::
-  MAP\_wanted(t) = MAP_{no\_nore}(t) + norepinephrine\_effect(t)
+  MAP_{wanted}(t) = MAP_{no\_nore}(t) + norepinephrine\_effect(t)
 
 where :math:`MAP_{no\_nore}(t)` is the MAP computed without norepinephrine, and :math:`norepinephrine\_effect(t)` is the effect of norepinephrine on MAP give using a sigmoid function. The dynamic of TPR in the system including the effect of norepinephrine is then given by:
 
