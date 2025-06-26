@@ -73,63 +73,130 @@ To output an indicator of analgesia in the simulator, we used the Tolerance of L
 .. math:: postopioid(t) = preopioid \times \left(1 - \frac{x_{er,BIS}(t)^{\gamma_r}}{x_{er,BIS}(t)^{\gamma_r} + (C_{r,50,TOL} \times preopioid)^{\gamma_r}}\right)
 .. math:: TOL(t) = \frac{x_{ep,BIS}(t)^{\gamma_p}}{x_{ep,BIS}(t)^{\gamma_p} + (C_{p,50,TOL} \times postopioid(t))^{\gamma_p}}
 
-where :math:`preopioid` is the tolerance of laryngoscopy without remifentanil, :math:`x_{er,BIS}(t)` and :math:`x_{ep,BIS}(t)` are the remifentanil and propofol concentration in the TOL effect site (same than the BIS effect site), :math:`C_{r,50,TOL}` and :math:`C_{p,50,TOL}` are the remifentanil and propofol half-effect concentrations for TOL.
+where :math:`preopioid` is the tolerance of laryngoscopy without remifentanil, :math:`x_{er,BIS}(t)` and :math:`x_{ep,BIS}(t)` are the remifentanil and propofol concentration in the TOL effect site (same than the BIS effect site), :math:`C_{r,50,TOL}` and :math:`C_{p,50,TOL}` are the remifentanil and propofol half-effect concentrations for TOL. This model is illustrated in the figure below.
+
+.. figure:: ../images/hierarchical_model.png
+   :width: 80%
+   :align: center
+   :alt: Hirarchical model for TOL
+
+   Hierarchical model for TOL, figure from Bouillon2004_.
 
 Haemodynamic
 --------------
 
-For the effect of propofol and remifentanil on mean arterial pressure (MAP), the interaction of drugs has still to be studied. Thus, the effect of propofol, remifentanil and norepinephrine is considered to be independent and additive. The influence of propofol on MAP has been studied in Jeleazcov2015_, the influence of remifentanil in Standing2010_ and the one of norepinephrine in Beloeil2005_. For propofol, the authors of Jeleazcov2015_ find that the use of two different effect-site compartments better represents the effect of propofol on MAP. The model is given by:
+Haemodynamics are the dynamic of blood flow. Blood flow ensures the transportation of nutrients, hormones, metabolic waste products, oxygen, and carbon dioxide throughout the body to maintain cell-level metabolism, the regulation of the pH, osmotic pressure and temperature of the whole body, and the protection from microbial and mechanical harm.
+
+The main variable to monitor is the cardiac output (CO), which is the volume of blood pumped by the heart per minute as it is the main determinant of oxygen delivery to tissues. However, CO is not directly measurable, and thus, the mean arterial pressure (MAP) is often used as a surrogate. The MAP is the average arterial pressure during one cardiac cycle, and it is considered to be a good indicator of perfusion pressure in the organs. The CO and MAP are influenced by the drugs used during anesthesia, and thus, it is important to model their effects.
+
+For the effect of propofol and remifentanil on MAP and CO, the interaction of drugs has been studied in Su2023_ using a general pharmacodynamic interaction model. In this dynamical model, three variable are considered to be dynamic: the total peripheral resistance (TPR), the stroke volume (SV), and the heart rate (HR). They respectively represent the resistance of the blood vessels, the volume of blood pumped by the heart per beat, and the number of heartbeats per minute. They are related to the MAP and CO by the following equations:
 
 .. math::
-    \small
-    MAP(t) =  MAP_0 - \underbrace{E_{max,r}\frac{x_{er,hemo}(t)^{\gamma_{r}}}{C_{50r,MAP}^{\gamma_{r}} + x_{er,hemo}(t)^{\gamma_{r}}}}_{\text{remifentanil effect}} 
-    - \underbrace{E_{max,p}  \frac{I_p(t)}{1 + I_p(t)}}_{\text{propofol effect}} + \underbrace{E_{max,n}\frac{x_{n}(t)^{\gamma_{r}}}{C_{50n,MAP}^{\gamma_{n}} + x_{n}(t)^{\gamma_{r}}}}_{\text{norepinephrine effect}}
+    :label: eq:hemodynamic
 
-with:
+    MAP(t) = TPR(t) \times CO(t)
 
-.. math::
+    CO(t) = SV(t) \times HR(t)
 
-    I_p(t) = \left( \frac{x_{ep,hemo,1}(t)}{C_{50p,MAP,1}}\right)^{\gamma_{p1}} + \left(\frac{x_{ep,hemo,2}(t)}{C_{50p,MAP,2}}\right)^{\gamma_{p2}}
-
-where :math:`MAP_0` is the MAP baseline, :math:`E_{max,r}`, :math:`E_{max,p}` and :math:`E_{max,n}` are the maximal effects of remifentanil, propofol and norepinephrine on MAP, :math:`x_{er,hemo}`, :math:`x_{ep,hemo,1}`, :math:`x_{ep,hemo,2}` and :math:`x_{n}` are the remifentanil and propofol, and norepinephrine concentrations in the hemodynamic effect site, or blood compartment for norepinephrine. :math:`C_{50r,MAP}`, :math:`C_{50p,MAP,1}`, :math:`C_{50p,MAP,2}`, :math:`C_{50n,MAP}`, :math:`\gamma_{r}`, :math:`\gamma_{p1}`, :math:`\gamma_{p2}`, and :math:`\gamma_{n}`, are the half-effect concentrations and Hill coefficients of remifentanil and propofol and norepinephrine.
-
-For the effect on cardiac output (CO), studies are scarce. As for MAP, we considered additive drug effect, without any synergic effect. Because no sigmoid model was available in the litterature, we infer value to match experimental values from the following papers: Fairfield1991_ for propofol, Chanavaz2005_ for remifentanil and Monnet2011_ for  norepinephrine. We used the same effect sites than the one from MAP, and for propofol the mean concentration between the two efefct site compartment is used. Note that this is a crude simplification.
+The idea of this model is to consider that TPR, SV and HR are autoregulated by the body through measurement of the MAP (from baroreflexes). Particularly the following equations are used to model the TPR, SV and HR without drugs:
 
 .. math::
-    \small
-    CO(t) =  CO_0 - \underbrace{E_{max,r}\frac{x_{er,hemo}(t)^{\gamma_{r}}}{C_{50r,CO}^{\gamma_{r}} + x_{er,hemo}(t)^{\gamma_{r}}}}_{\text{remifentanil effect}} 
-    - \underbrace{E_{max,p}\frac{x_{p,hemo}(t)^{\gamma_{p}}}{C_{50p,CO}^{\gamma_{p}} + x_{p,hemo}(t)^{\gamma_{p}}}}_{\text{propofol effect}} + \underbrace{E_{max,n}\frac{x_{n}(t)^{\gamma_{r}}}{C_{50n,CO}^{\gamma_{n}} + x_{n}(t)^{\gamma_{r}}}}_{\text{norepinephrine effect}}
+    \dot{TPR}(t) = \frac{k_{in\_TPR}}{RMAP(t)^{FB}} - k_{out} TPR(t)
 
-with:
+    \dot{SV}(t) =  \frac{k_{in\_SV}}{RMAP(t)^{FB}} - k_{out} SV(t)
 
-.. math::
+    \dot{HR}(t) =  \frac{k_{in\_HR}}{ RMAP(t)^{FB}} - k_{out} HR(t)
 
-    x_{p,hemo}(t) = \frac{x_{ep,hemo,1}(t)+x_{ep,hemo,2}(t)}{2}
+where :math:`RMAP(t)` is the normalized MAP thanks to the baseline MAP, :math:`k_{in\_TPR}`, :math:`k_{in\_SV}`, and :math:`k_{in\_HR}` are the gain of the feedback loop for TPR, SV and HR, respectively, and :math:`k_{out}` is the decay rate of TPR, SV and HR. The exponent :math:`FB` is a feedback exponent that determines the sensitivity of the feedback loop to changes in MAP.
 
-where :math:`CO_0` is the CO baseline, :math:`E_{max,r}`, :math:`E_{max,p}` and :math:`E_{max,n}` are the maximal effects of remifentanil, propofol and norepinephrine on CO, :math:`x_{er,hemo}`, :math:`x_{ep,hemo,1}`, :math:`x_{ep,hemo,2}` and :math:`x_{n}` are the remifentanil and propofol, and norepinephrine concentrations in the hemodynamic effect site, or blood compartment for norepinephrine. :math:`C_{50r,CO}`, :math:`C_{50p,CO}`, :math:`C_{50n,CO}`, :math:`\gamma_{r}`, :math:`\gamma_{p}`, and :math:`\gamma_{n}`, are the half-effect concentrations and Hill coefficients of remifentanil and propofol and norepinephrine.
-
-The overall model of the anesthesia process is then given by connecting the PK model and the PD model. This can be formalized as a model with a linear dynamic and a non-linear output function in the following state-space representation:
+In Su2023_, the effect of propofol and remifentanil is modelled as a perturbation of this autoregulation. In addition, a time dependant effect have been added to the model to describe elevated MAP, HR, and PP before anesthesia induction. Finally, a non-linear relationship between SV and HR is considered to represent the effect of shorter left ventricular filling time because of increased HR thereby decreasing SV
 
 .. math::
-    :label: eq:standard_model
+    \begin{align}
+    \dot{TPR}(t) &= \frac{k_{in\_TPR}}{RMAP(t)^{FB}}(1 + EFF_{prop\_TPR}(t)) - k_{out} TPR(t) (1 - EFF_{remi\_TPR}(t)) \\
+    \dot{SV}^*(t) &=  \frac{k_{in\_SV}}{RMAP(t)^{FB}}(1 + EFF_{prop\_SV}(t)) - k_{out} SV^*(t) (1 - EFF_{remi\_SV}(t))\\
+    \dot{HR}^*(t) &=  \frac{k_{in\_HR}}{ RMAP(t)^{FB}} - k_{out} HR^*(t) (1 - EFF_{remi\_HR}(t))\\
+    \dot{TDE\_SV}(t) &= - k_{TDE} TDE\_SV (t)\\
+    \dot{TDE\_HR}(t) &= - k_{TDE} TDE\_HR (t)
+    \end{align}
 
-    \begin{cases}
-        \dot{x}(t) = A x(t) + B u(t) \\
-        y(t) = h(x(t))
-    \end{cases}
+with the effect of drugs on TPR, SV and HR given by the following sigmoidal functions:
 
-where :math:`x(t)` is the system state, including the drug concentrations of propofol, remifentanil and norepinephrine in each compartment, :math:`u(t)` the drugs rates, and :math:`y(t)` is the output of the system, *i.e.*, the BIS, TOL, MAP, and CO.
+.. math::
+    \begin{align}
+    EFF_{prop\_TPR}(t) &= \left( Emax_{propo, tpr} + int_{tpr} \cdot \frac{cp_{remi}(t)}{cp_{remi}(t) + c50_{remi, tpr}} \right) \cdot \frac{cp_{propo}(t)^{\gamma_{propo, tpr}}}{cp_{propo}(t)^{\gamma_{propo, tpr}} + c50_{propo, tpr}^{\gamma_{propo, tpr}}}\\
+    EFF_{remi, SV}(t) &= \left( sl_{remi, sv} + int_{sv} \cdot \frac{cp_{propo}(t)}{cp_{propo}(t) + c50_{propo, sv}} \right) \cdot cp_{remi}(t)\\
+    EFF_{remi, HR}(t) &= \left( sl_{remi, hr} + int_{hr} \cdot \frac{cp_{propo}(t)}{cp_{propo}(t) + c50_{int, hr}} \right)\cdot cp_{remi}(t)\\
+    EFF_{prop, DV}(t) &= Emax_{propo, sv} \cdot \frac{cp_{propo}(t)}{cp_{propo}(t) + c50_{propo, sv}} \\
+    EFF_{remi, TPR}(t) &= Emax_{remi, tpr} \cdot \frac{cp_{remi}(t)}{cp_{remi}(t) + c50_{remi, tpr}}
+    \end{align}
+
+Then the output are computed with the following equations:
+
+.. math::
+    \begin{align}
+    HR(t) &= HR^*(t) + TDE\_HR(t) \\
+    SV(t) &= (SV^*(t) + TDE\_SV(t)) (1- \alpha log(HR(t)/HR_0)) \\
+    CO(t) &= SV(t) \times HR(t) \\
+    MAP(t) &= TPR(t) \times CO(t)
+    \end{align}
+
+An illustration of this model is given below:
+
+.. figure:: ../images/Su_model.png
+   :width: 80%
+   :align: center
+   :alt: Mechanically based pharmacodynamic model for haemodynamic effects
+
+   Mechanically based pharmacodynamic model for haemodynamic effects, figure from Su2023_.
+
+The Norepinephrine effect ahve not been yet included in this dynamical model. However, it exists direct pharmacodynamic models, linking the blood concentration of norepinephrine to the increase of MAP ([Beloeil2005_], [Oualha2014_]) using a sigmoid function. As it is known that norepinephrine has a direct effect on TPR, we considered that the norepinephrine affect MAP through TPR to reach the effect identified in the literature. To be explicite, when doing the simulation with norepinephrine, two different system are simulated: one with olny the effect of propofol and remifentanil, and one with the effect of norepinephrine. The difference between the two is that the dynamic of TPR is modified to reach the desired MAP. Particularly:
+
+.. math::
+  MAP\_wanted(t) = MAP_{no\_nore}(t) + norepinephrine\_effect(t)
+
+where :math:`MAP_{no\_nore}(t)` is the MAP computed without norepinephrine, and :math:`norepinephrine\_effect(t)` is the effect of norepinephrine on MAP give using a sigmoid function. The dynamic of TPR in the system including the effect of norepinephrine is then given by:
+
+.. math::
+  \begin{align}
+  \dot{TPR}(t) = & \frac{k_{in\_TPR}}{RMAP(t)^{FB}}(1 + EFF_{prop\_TPR}(t)) \\
+  & - k_{out} TPR(t) (1 - EFF_{remi\_TPR}(t)) \\
+  & \textcolor{blue}{ + k_{nore}(MAP_{wanted}(t)- MAP(t))}
+  \end{align}
+
+The term in blue ensure that MAP is converging to the desired value, :math:`MAP_{wanted}`, :math:`k_{nore}` is choosen to have a fast convergence without too much oscillation. Then the dynamic of HR and SV are computed as in the system without norepinephrine. This approach allows to make use of the previous results on norepinephrine effect on MAP while keeping valid the dynamical model of Su2023_. Particularly, it allow to model the effect of norepinephrine on SV, HR, and CO without having to infer new parameters for the model. As seen in the figure below, the simulator model the effect of norepinephrine on the whole haemodynamic system by merging the effect on MAP and the dynamic of TPR, SV, and HR.
+
+.. figure:: ../images/hemo_sys_nore.png
+   :width: 60%
+   :align: center
+   :alt: Effect of Norepinephrine on the haemodynamic system
+
+   Effect of a constant injection of norepinephrine (0.1µg/s) on the haemodynamic system.
+
+Please note that this "tricks" makes the important approximation that the effect of norepinephrine on MAP is only through TPR which might not be true. Thus, we are looking forward to a complete pharmacodynamic model including the effect of norepinephrine along with the one of propofol and remifentanil. 
 
 Effect summary
 -----------------
 
-The following table summarizes the effect of the drugs on the physiological variables:
+The overall model of anesthesia process is given by connecting the PK model and the different PD models. This can be ilustrated with the following figure:
+
+.. figure:: ../images/overall_scheme.svg
+   :width: 80%
+   :align: center
+   :alt: Overall model scheme
+
+   Overall model scheme
+
+
+
+The following table summarizes the effect of single drugs injection on the model outputs:
 
 .. raw:: html
 
     <style>
       .blue-bg { background-color: #cce5ff; }  /* Light blue */
       .red-bg { background-color: #f8d7da; }   /* Light red */
+      .green-bg { background-color:rgb(211, 252, 192); }   /* Light red */
       table.colored-table {
         border-collapse: collapse;
         width: 100%;
@@ -175,9 +242,27 @@ The following table summarizes the effect of the drugs on the physiological vari
         </tr>
         <tr>
           <th>CO</th>
+          <td class="red-bg">+</td>
+          <td class="red-bg">+</td>
+          <td class="blue-bg">-</td>
+        </tr>
+        <tr>
+          <th>TPR</th>
           <td class="blue-bg">-</td>
           <td class="blue-bg">-</td>
           <td class="red-bg">+</td>
+        </tr>
+        <tr>
+          <th>SV</th>
+          <td class="blue-bg">-</td>
+          <td class="red-bg">+</td>
+          <td class="blue-bg">-</td>
+        </tr>
+        <tr>
+          <th>HR</th>
+          <td class="red-bg">+</td>
+          <td class="red-bg">+</td>
+          <td class="blue-bg">-</td>
         </tr>
       </tbody>
     </table>
@@ -190,24 +275,14 @@ References
 .. [Bouillon2004] T. W. Bouillon et al., “Pharmacodynamic Interaction between Propofol and Remifentanil
     Regarding Hypnosis, Tolerance of Laryngoscopy, Bispectral Index, and Electroencephalographic Approximate
     Entropy,” Anesthesiology, vol. 100, no. 6, pp. 1353–1372, Jun. 2004, doi: https://doi.org/10.1097/00000542-200406000-00006.
-.. [Ionescu2021] Ionescu, C. M., Neckebroek, M., Ghita, M., & Copot, D. (2021). An Open Source Patient
-    Simulator for Design and Evaluation of Computer Based Multiple Drug Dosing Control for Anesthetic and
-    Hemodynamic Variables. IEEE Access, 9, 8680–8694. https://doi.org/10.1109/ACCESS.2021.3049880
-.. [Jeleazcov2015] C. Jeleazcov, M. Lavielle, J. Schüttler, and H. Ihmsen, “Pharmacodynamic response modelling
-    of arterial blood pressure in adult volunteers during propofol anaesthesia,” BJA: British Journal of Anaesthesia,
-    vol. 115, no. 2, pp. 213–226, Aug. 2015, doi: https://doi.org/10.1093/bja/aeu553.
-.. [Standing2010] J. F. Standing, G. B. Hammer, W. J. Sam, and D. R. Drover, “Pharmacokinetic–pharmacodynamic
-    modeling of the hypotensive effect of remifentanil in infants undergoing cranioplasty,” Pediatric Anesthesia,
-    vol. 20, no. 1, pp. 7–18, 2010, doi: https://doi.org/10.1111/j.1460-9592.2009.03174.x.
 ..  [Beloeil2005]  H. Beloeil, J.-X. Mazoit, D. Benhamou, and J. Duranteau, “Norepinephrine kinetics and dynamics
     in septic shock and trauma patients,” BJA: British Journal of Anaesthesia, vol. 95, no. 6,
     pp. 782–788, Dec. 2005, doi: https://doi.org/10.Beloeil20051093/bja/aei259.
-.. [Fairfield1991] J. E. Fairfield, A. Dritsas, and R. J. Beale, “Haemodynamic effects of propofol:
-    induction with 2.5 mg/kg,” British Journal of Anaesthesia, vol. 67, no. 5,
-    pp. 618–620, Nov. 1991, doi: https://doi.org/10.1093/bja/67.5.618.
-.. [Chanavaz2005] C. Chanavaz et al., “Haemodynamic effects of remifentanil in children
-    with and without intravenous atropine. An echocardiographic study,”
-    BJA: British Journal of Anaesthesia, vol. 94, no. 1, pp. 74–79, Jan. 2005, doi: https://doi.org/10.1093/bja/aeh293.
-..  [Monnet2011]  X. Monnet, J. Jabot, J. Maizel, C. Richard, and J.-L. Teboul, “Norepinephrine increases
-    cardiac preload and reduces preload dependency assessed by passive leg raising in septic shock patients”
-    Critical Care Medicine, vol. 39, no. 4, p. 689, Apr. 2011, doi: https://doi.org/10.1097/CCM.0b013e318206d2a3.
+..  [Su2023] H. Su, J. V. Koomen, D. J. Eleveld, M. M. R. F. Struys, and P. J. Colin, “Pharmacodynamic
+    mechanism-based interaction model for the haemodynamic effects of remifentanil and propofol in healthy
+    volunteers,” British Journal of Anaesthesia, vol. 131, no. 2, pp. 222–233, Aug. 2023,
+    doi: https://10.1016/j.bja.2023.04.043.
+.. [Oualha2014] M. Oualha et al., “Population pharmacokinetics and haemodynamic effects of norepinephrine
+        in hypotensive critically ill children,” British Journal of Clinical Pharmacology,
+        vol. 78, no. 4, pp. 886–897, 2014, doi: https://10.1111/bcp.12412.
+
