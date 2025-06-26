@@ -423,15 +423,15 @@ class Hemo_simple_PD_model():
     Parameters
     ----------
     nore_param : list, optional
-        List of hill curve parameters for Norepinephrine action 
+        List of hill curve parameters for Norepinephrine action
         [Emax_map, c50_map, gamma_map, Emax_co, c50_co, gamma_co].
         The default is None.
     propo_param : list, optional
-        List of hill curve parameters for Propofol action 
+        List of hill curve parameters for Propofol action
         [emax_SAP, emax_DAP, c50_map_1, c50_map_2, gamma_map_1, gamma_map_2, Emax_co, c50_co, gamma_co].
         The default is None.
     remi_param : list, optional
-        List of hill curve parameters for Remifentanil action 
+        List of hill curve parameters for Remifentanil action
         [Emax_map, c50_map, gamma_map, Emax_co, c50_co, gamma_co].
         The default is None.
     random : bool, optional
@@ -496,7 +496,7 @@ class Hemo_simple_PD_model():
 
     References
     ----------
-    .. [Beloeil2005]  H. Beloeil, J.-X. Mazoit, D. Benhamou, and J. Duranteau, 
+    .. [Beloeil2005]  H. Beloeil, J.-X. Mazoit, D. Benhamou, and J. Duranteau,
             “Norepinephrine kinetics and dynamics in septic shock and trauma patients,”
             BJA: British Journal of Anaesthesia, vol. 95, no. 6, pp. 782–788, Dec. 2005,
             doi: 10.1093/bja/aei261.
@@ -738,18 +738,78 @@ class Hemo_simple_PD_model():
 
 
 class Hemo_meca_PD_model:
-    r""" This class implement the mechanically based model of Haemodynamic proposed in Su2023_.
+    r"""This class implements the mechanically based model of Haemodynamics proposed in [Su2023].
 
-    Particularly, the Haemodynamic is considered to be a dynamical system with the following dynamic:
+    Particularly, Haemodynamics are considered to be a dynamical system with the following dynamics:
 
-    .. math:: \dot{TPR} = k_{in\_TPR} RMAP^{FB} (1+EFF_{prop\_TPR}) - k_{out} TPR (1 - EFF_{remi\_TPR})
-    .. math:: \dot{SV^* }= k_{in\_SV} RMAP^{FB} (1+EFF_{prop\_SV}) - k_{out} SV^* (1 - EFF_{remi\_SV})
-    .. math:: \dot{HR}^* = k_{in\_HR} RMAP^{FB} - k_{out} HR^* (1 - EFF_{remi\_HR})
+    .. math::
 
-    Where TPR stand for total peripheral resistance, SV stroke volume, and HR the heart rate. The different effect are sigmoid function depending on propofol and remifentanil concentration.
+        \dot{TPR} = k_{in\_TPR} RMAP^{FB} (1+EFF_{prop\_TPR}) - k_{out} TPR (1 - EFF_{remi\_TPR})
 
+    .. math::
 
+        \dot{SV^*} = k_{in\_SV} RMAP^{FB} (1+EFF_{prop\_SV}) - k_{out} SV^* (1 - EFF_{remi\_SV})
 
+    .. math::
+
+        \dot{HR^*} = k_{in\_HR} RMAP^{FB} - k_{out} HR^* (1 - EFF_{remi\_HR})
+
+    Where TPR stands for total peripheral resistance, SV for stroke volume, and HR for heart rate.
+    The different effects are sigmoid functions depending on propofol and remifentanil concentrations.
+
+    Moreover, we consider the effect of norepinephrine on the haemodynamics as a simple addition of a sigmoid curve
+    to MAP from the models of [Beloeil2005] and [Oualha2014]. To model the implications of norepinephrine, we use:
+
+    .. math::
+
+        MAP\_wanted(t) = MAP_{no\_nore}(t) + norepinephrine\_effect(t)
+
+    where :math:`MAP_{no\_nore}(t)` is the MAP computed without norepinephrine, and
+    :math:`norepinephrine\_effect(t)` is the effect of norepinephrine on MAP modeled by a sigmoid function.
+    The dynamics of TPR including norepinephrine is then:
+
+    .. math::
+
+        \begin{align}
+        \dot{TPR}(t) = & \frac{k_{in\_TPR}}{RMAP(t)^{FB}}(1 + EFF_{prop\_TPR}(t)) \\
+        & - k_{out} TPR(t) (1 - EFF_{remi\_TPR}(t)) \\
+        & + k_{nore}(MAP_{wanted}(t)- MAP(t))
+        \end{align}
+
+    Parameters
+    ----------
+    age : float
+        Age of the patient in years.
+    ts : float
+        Sampling time in seconds.
+    model : str, optional
+        Model to use, only 'Su' is available. The default is 'Su'.
+    nore_model : str, optional
+        Model to use for norepinephrine, 'Beloeil' and 'Oualha' are available. The default is 'Beloeil'.
+    random : bool, optional
+        Add uncertainties in the parameters. The default is False.
+    hr_base : float, optional
+        Baseline heart rate (bpm). The default is None, which will use the value from the Su model.
+    sv_base : float, optional
+        Baseline stroke volume (mL). The default is None, which will use the value from the Su model.
+    map_base : float, optional
+        Baseline mean arterial pressure (mmHg). The default is None, which will use the value from the Su model.
+
+    References
+    ----------
+    .. [Su2023] H. Su, J. V. Koomen, D. J. Eleveld, M. M. R. F. Struys, and P. J. Colin,
+       “Pharmacodynamic mechanism-based interaction model for the haemodynamic effects of remifentanil
+       and propofol in healthy volunteers,” *British Journal of Anaesthesia*, vol. 131, no. 2,
+       pp. 222–233, Aug. 2023. doi:10.1016/j.bja.2023.04.043.
+
+    .. [Beloeil2005] H. Beloeil, J.-X. Mazoit, D. Benhamou, and J. Duranteau,
+       “Norepinephrine kinetics and dynamics in septic shock and trauma patients,”
+       *BJA: British Journal of Anaesthesia*, vol. 95, no. 6, pp. 782–788, Dec. 2005.
+       doi:10.1093/bja/aei259.
+
+    .. [Oualha2014] M. Oualha et al., “Population pharmacokinetics and haemodynamic effects of norepinephrine
+       in hypotensive critically ill children,” *British Journal of Clinical Pharmacology*,
+       vol. 78, no. 4, pp. 886–897, 2014. doi:10.1111/bcp.12412.
     """
 
     def __init__(self,
@@ -800,6 +860,7 @@ class Hemo_meca_PD_model:
             self.c50_int_hr = 0.20  # (µg/ml)
             self.int_tpr = 1
             self.int_sv = -0.212  # (ng/ml)
+
             if hr_base is not None:
                 self.hr_base = hr_base / (1 + self.ltde_hr)
                 self.sv_base = sv_base / (1 + self.ltde_sv)
@@ -843,6 +904,7 @@ class Hemo_meca_PD_model:
             w_emax_nore_map = 0
             w_c50_nore_map = 0.09
             w_gamma_nore_map = 0
+        self.k_effect = 0.0001  # (1/s)
 
         if random:
             # compute intercorrelated uncertainties
@@ -871,13 +933,15 @@ class Hemo_meca_PD_model:
             self.hr_base*self.ltde_hr,
         ])
 
-        self.x_no_nore = np.array([
+        self.x_effect = np.array([
             self.tpr_base,
             self.sv_base,
             self.hr_base,
             self.sv_base*self.ltde_sv,
             self.hr_base*self.ltde_hr,
         ])
+        self.flag_nore_used = False
+        self.flag_blood_loss = False
 
         self.abase_sv = self.sv_base * (1 + self.ltde_sv)
         self.abase_hr = self.hr_base * (1 + self.ltde_hr)
@@ -892,7 +956,7 @@ class Hemo_meca_PD_model:
         self.hemo_system = control.NonlinearIOSystem(
             continuous_dynamic_sys,
             output_function_sys,
-            inputs=2,
+            inputs=4,
             outputs=5,
             states=5,
         )
@@ -914,7 +978,7 @@ class Hemo_meca_PD_model:
         x : np.ndarray
             state array composed of tpr, sv, hr, ltde_sv, ltde_hr.
         u: np.ndarray
-            u = [cp_propo, cp_remi], plasma concentration of propofol (µg/ml) and remifentanil (ng/ml).
+            u = [cp_propo, cp_remi, map_wanted, sv_wanted], plasma concentration of propofol (µg/ml) and remifentanil (ng/ml).
 
         Returns
         -------
@@ -925,6 +989,8 @@ class Hemo_meca_PD_model:
         # compute drug effect
         cp_propo = u[0]
         cp_remi = u[1]
+        map_wanted = u[2]
+        sv_wanted = u[3]
 
         eff_propo_tpr = (self.emax_propo_tpr + self.int_tpr * fsig(cp_remi, self.c50_remi_tpr, 1)) * \
             fsig(cp_propo, self.c50_propo_tpr, self.gamma_propo_tpr)
@@ -944,8 +1010,13 @@ class Hemo_meca_PD_model:
 
         sv = x[1]
         hr = x[2]
-        tpr_dot = self.k_in_tpr * rmap**self.fb * (1 + eff_propo_tpr) - self.k_out*x[0]*(1 - eff_remi_tpr)
+        tpr_dot = self.k_in_tpr * rmap**self.fb * (1 + eff_propo_tpr) - \
+            self.k_out*x[0]*(1 - eff_remi_tpr)
+        if map_wanted > 0:
+            tpr_dot += (map_wanted - a_map) * self.k_effect
         sv_dot_star = self.k_in_sv * rmap**self.fb * (1 + eff_propo_sv) - self.k_out*sv*(1 - eff_remi_sv)
+        if sv_wanted > 0:
+            sv_dot_star += (sv_wanted - a_sv) * self.k_effect*1000
         hr_dot_star = self.k_in_hr * rmap**self.fb - self.k_out*hr*(1 - eff_remi_hr)
 
         if u[0] > 0:  # apply the time dependant function only if anesthesia as started.
@@ -996,6 +1067,7 @@ class Hemo_meca_PD_model:
             cp_propo: float = 0,
             cp_remi: float = 0,
             cp_nore: float = 0,
+            v_ratio: float = 1,
     ) -> np.ndarray:
         """Compute one step time of the hemodynamic system.
 
@@ -1004,47 +1076,77 @@ class Hemo_meca_PD_model:
         Parameters
         ----------
         c_propo : float
-            current plasma concentration of propofol (µg/ml).
+            current plasma concentration of propofol (µg/ml), default is 0.
         cp_remi : float
-            current plasma concentration of remifentanil (ng/ml).
+            current plasma concentration of remifentanil (ng/ml), default is 0.
         cp_nore : float
-            current plasma concentration of norepinephrine (ng/ml). 
+            current plasma concentration of norepinephrine (ng/ml), default is 0.
+        v_ratio : float
+            blood volume as a fraction of init volume, 1 mean no loss, 0 mean 100% loss, default is 1.
         """
-        # run computation for model with nore effect
+        # run computation for model without nore effect and without blood loss
         results = control.input_output_response(
             self.hemo_system,
             T=np.array([0, self.ts]),
             U=np.array(
                 [[self.previous_cp_propo, cp_propo],
-                 [self.previous_cp_remi, cp_remi]]
+                 [self.previous_cp_remi, cp_remi],
+                 [0, 0],
+                 [0, 0]]
             ),
             X0=self.x,
             return_x=True,
         )
         self.x = results.x[:, 1]
 
-        # run computation for model without nore effect
-        results_no_nore = control.input_output_response(
-            self.hemo_system,
-            T=np.array([0, self.ts]),
-            U=np.array(
-                [[self.previous_cp_propo, cp_propo],
-                 [self.previous_cp_remi, cp_remi]]
-            ),
-            X0=self.x_no_nore,
-            return_x=True,
-        )
-        self.x_no_nore = results_no_nore.x[:, 1]
-
-        # add effect of Norepinephrine on TPR
-        map_no_nore = results_no_nore.y[3, 1]
-        map_previous_nore = results.y[3, 1]
-        self.x[0] = self.x[0] * (map_no_nore + self.nore_map_effect(cp_nore)) / map_previous_nore
+        if (self.flag_nore_used or cp_nore > 0) and not self.flag_blood_loss:
+            if not self.flag_blood_loss:
+                self.flag_nore_used = True
+            if v_ratio != 1:
+                print("Warning: norepinephrine effect is not computed with blood loss")
+            map_no_nore = results.y[3, 1]
+            map_wanted = map_no_nore + self.nore_map_effect(cp_nore)
+            # run computation for model with nore effect
+            results_w_nore = control.input_output_response(
+                self.hemo_system,
+                T=np.array([0, self.ts]),
+                U=np.array(
+                    [[self.previous_cp_propo, cp_propo],
+                     [self.previous_cp_remi, cp_remi],
+                     [map_wanted, map_wanted],
+                     [0, 0]]
+                ),
+                X0=self.x_effect,
+                return_x=True,
+            )
+            self.x_effect = results_w_nore.x[:, 1]
+        elif (v_ratio < 1 or self.flag_blood_loss) and not self.flag_nore_used:
+            if not self.flag_blood_loss:
+                self.flag_blood_loss = True
+            if cp_nore > 0:
+                print("Warning: norepinephrine effect is not computed with blood loss")
+            sv_no_blood_loss = results.y[1, 1]
+            sv_wanted = sv_no_blood_loss*v_ratio
+            results_blood_loss = control.input_output_response(
+                self.hemo_system,
+                T=np.array([0, self.ts]),
+                U=np.array(
+                    [[self.previous_cp_propo, cp_propo],
+                     [self.previous_cp_remi, cp_remi],
+                     [0, 0],
+                     [sv_wanted, sv_wanted]]
+                ),
+                X0=self.x_effect,
+                return_x=True,
+            )
+            self.x_effect = results_blood_loss.x[:, 1]
+        else:
+            self.x_effect = self.x.copy()
 
         self.previous_cp_propo = cp_propo
         self.previous_cp_remi = cp_remi
-
-        return self.output_function(self.x)  # tpr, sv, hr, map, co
+        output = self.output_function(self.x_effect)
+        return output  # tpr, sv, hr, map, co
 
     def full_sim(self,
                  cp_propo: np.ndarray,
@@ -1113,28 +1215,60 @@ class Hemo_meca_PD_model:
 
         # solve equilibrium without nore
         x = cas.MX.sym('x', 5)
-        dx = cas.vertcat(*self.continuous_dynamic(x, [cp_propo_eq, cp_remi_eq]))
+        dx = cas.vertcat(*self.continuous_dynamic(x, [cp_propo_eq, cp_remi_eq, 0, 0]))
         F_root = cas.rootfinder('F_root', 'newton', {'x': x, 'g': dx})
         sol = F_root(x0=x0)
-
         x_no_nore = sol['x'].full().flatten()
+        self.x_eq = x_no_nore
 
+        # if nore is used, solve equilibrium with nore
         if cp_nore_eq > 0:
             output_no_nore = self.output_function(x_no_nore)
             map_eq = output_no_nore[3] + self.nore_map_effect(cp_nore_eq)
             # solve equilibrium with nore
             x = cas.MX.sym('x', 5)
-            map_prob = self.output_function(x)[3]
-            dx = cas.vertcat(*self.continuous_dynamic(x, [cp_propo_eq, cp_remi_eq]))
-            dx[0] += (1 - map_prob/map_eq)  # add derivative if map not at map_eq
+            dx = cas.vertcat(*self.continuous_dynamic(x, [cp_propo_eq, cp_remi_eq, map_eq, 0]))
+            # map_nore = self.output_function(x)[3]
+            # dx[0] = (map_nore - map_eq)**2
             F_root = cas.rootfinder('F_root', 'newton', {'x': x, 'g': dx})
             sol = F_root(x0=x0)
 
-            x_eq = sol['x'].full().flatten()
+            x_eq_out = sol['x'].full().flatten()
         else:
-            x_eq = x_no_nore
+            x_eq_out = x_no_nore
 
-        output = self.output_function(x_eq)
-        self.xeq = x_eq
+        output = self.output_function(x_eq_out)
+        self.x_eq_w_nore = x_eq_out
 
         return output
+
+    def initialized_at_given_concentration(
+            self,
+            cp_propo_eq: float = 0,
+            cp_remi_eq: float = 0,
+            cp_nore_eq: float = 0
+    ) -> None:
+        """Initialize the haemodynamic model at a given concentration.
+
+        Parameters
+        ----------
+        c_propo : float
+            plasma concentration of propofol at equilibrium (µg/ml).
+        cp_remi : float
+            plasma concentration of remifentanil  at equilibrium (ng/ml).
+        cp_nore : float
+            plasma concentration of norepinephrine  at equilibrium (ng/ml).
+
+        Returns
+        -------
+        None
+            The haemodynamic model is initialized at the given concentration.
+        """
+
+        # compute the state at equilibrium
+        _ = self.state_at_equilibrium(cp_propo_eq, cp_remi_eq, cp_nore_eq)
+        # initialize the haemodynamic model
+        self.x_effect = self.x_eq_w_nore
+        self.x = self.x_eq
+        self.previous_cp_propo = cp_propo_eq
+        self.previous_cp_remi = cp_remi_eq

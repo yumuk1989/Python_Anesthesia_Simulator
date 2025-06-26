@@ -270,6 +270,10 @@ class Patient:
             Tolerance of Laryngoscopy index (0-1).
 
         """
+        # blood loss effect
+        if blood_rate != 0 or self.blood_volume != self.blood_volume_init:
+            self.blood_loss(blood_rate)
+
         # compute PK model
         self.c_es_propo = self.propo_pk.one_step(u_propo)
         self.c_es_remi = self.remi_pk.one_step(u_remi)
@@ -279,7 +283,12 @@ class Patient:
         # TOL
         self.tol = self.tol_pd.compute_tol(self.c_es_propo, self.c_es_remi)
         # Hemodynamic
-        y_hemo = self.hemo_pd.one_step(self.propo_pk.x[0], self.remi_pk.x[0], self.c_blood_nore[0])
+        y_hemo = self.hemo_pd.one_step(
+            self.propo_pk.x[0],
+            self.remi_pk.x[0],
+            self.c_blood_nore[0],
+            self.blood_volume/self.blood_volume_init
+        )
         self.tpr = y_hemo[0]
         self.sv = y_hemo[1]
         self.hr = y_hemo[2]
@@ -291,17 +300,11 @@ class Patient:
         self.map += dist[1]
         self.co += dist[2]
 
-        # blood loss effect
-        if blood_rate != 0 or self.blood_volume != self.blood_volume_init:
-            self.blood_loss(blood_rate)
-            self.map *= self.blood_volume/self.blood_volume_init
-            self.co *= self.blood_volume/self.blood_volume_init
-
         # update PK model with CO
         if self.co_update:
-            self.propo_pk.update_param_CO(self.co/self.co_base)
-            self.remi_pk.update_param_CO(self.co/self.co_base)
-            self.nore_pk.update_param_CO(self.co/self.co_base)
+            self.propo_pk.update_param_CO(self.co/(self.co_base - 1))
+            self.remi_pk.update_param_CO(self.co/(self.co_base - 1))
+            self.nore_pk.update_param_CO(self.co/(self.co_base - 1))
 
         # add noise
         if noise:
@@ -511,6 +514,8 @@ class Patient:
         For each drug, the equilibrium state is computed from the input.
         Then this state is used to intitialze each drug pharmacokinetic model.
 
+        Warning, this option does not work if the `co_update` option is set to True.
+
         Parameters
         ----------
         u_propo : float, optional
@@ -529,33 +534,28 @@ class Patient:
         self.u_remi_eq = u_remi
         self.u_nore_eq = u_nore
 
+        if self.co_update:
+            print(self.co_eq)
+            self.propo_pk.update_param_CO(self.co_eq/self.co_base)
+            self.remi_pk.update_param_CO(self.co_eq/self.co_base)
+            self.nore_pk.update_param_CO(self.co_eq/self.co_base)
+
         self.c_blood_propo_eq = u_propo * control.dcgain(self.propo_pk.continuous_sys)
         self.c_blood_remi_eq = u_remi * control.dcgain(self.remi_pk.continuous_sys)
-        self.c_blood_remi_eq = u_nore * control.dcgain(self.nore_pk.continuous_sys)
+        self.c_blood_nore_eq = u_nore * control.dcgain(self.nore_pk.continuous_sys)
 
         # PK models
         self.propo_pk.x = np.array([self.c_blood_propo_eq]*len(self.propo_pk.x))
 
         self.remi_pk.x = np.array([self.c_blood_remi_eq]*len(self.remi_pk.x))
 
-        self.nore_pk.x = np.array([self.c_blood_remi_eq]*len(self.nore_pk.x))
-
-        if self.co_update:
-            self.propo_pk.update_param_CO(self.co_eq/self.co_base)
-            self.remi_pk.update_param_CO(self.co_eq/self.co_base)
-            self.nore_pk.update_param_CO(self.co_eq/self.co_base)
+        self.nore_pk.x = np.array([self.c_blood_nore_eq]*len(self.nore_pk.x))
 
         # PD hemo
-        y_hemo_no_nore = self.hemo_pd.state_at_equilibrium(
+        self.hemo_pd.initialized_at_given_concentration(
             self.c_blood_propo_eq,
             self.c_blood_remi_eq,
-            0)
-        self.hemo_pd.x_no_nore = np.array([y_hemo_no_nore[0], y_hemo_no_nore[1], y_hemo_no_nore[2], 0, 0])
-        y_hemo = self.hemo_pd.state_at_equilibrium(
-            self.c_blood_propo_eq,
-            self.c_blood_remi_eq,
-            self.c_blood_remi_eq)
-        self.hemo_pd.x = np.array([y_hemo[0], y_hemo[1], y_hemo[2], 0, 0])
+            self.c_blood_nore_eq)
 
         if self.save_data_bool:
             self.init_dataframe()
@@ -605,6 +605,10 @@ class Patient:
         self.initialized_at_given_input(u_propo=self.u_propo_eq,
                                         u_remi=self.u_remi_eq,
                                         u_nore=self.u_nore_eq)
+        if self.co_update:
+            self.propo_pk.update_param_CO(self.co_eq/self.co_base)
+            self.remi_pk.update_param_CO(self.co_eq/self.co_base)
+            self.nore_pk.update_param_CO(self.co_eq/self.co_base)
         return self.u_propo_eq, self.u_remi_eq, self.u_nore_eq
 
     def blood_loss(self, fluid_rate: float = 0):
@@ -682,7 +686,7 @@ class Patient:
             ignore_index=True
         )
 
-    def full_sim(self, u_propo: Optional[np.array] = None, u_remi: Optional[np.array] = None, u_nore: Optional[np.array] = None,
+    def full_sim(self, u_propo: Optional[np.ndarray] = None, u_remi: Optional[np.ndarray] = None, u_nore: Optional[np.ndarray] = None,
                  x0_propo: Optional[np.array] = None, x0_remi: Optional[np.array] = None, x0_nore: Optional[np.array] = None) -> pd.DataFrame:
         r"""Simulates the patient model using the drugs infusions profiles provided as inputs.
 
