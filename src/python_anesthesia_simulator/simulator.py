@@ -29,6 +29,8 @@ class Patient:
         Name of the norepinephrine PK Model. The default is 'Beloeil'.
     st : float, optional
         Simulation step (s). The default is 0.1.  
+        Smaller values improve the accuracy of the simulation.
+        Bigger values reduce the computational load but values greater than 1 would affect simulation accuracy.
     ts : float, optional
         Sampling time (s). The default is 1.
         It must be grater or equal to st.
@@ -144,8 +146,14 @@ class Patient:
 
         """
         
+        if ts < st:
+                raise ValueError("ts must be graeter or equal to st")
         if not (ts/st).is_integer():
                 raise ValueError("ts must be an integer multiple of st")
+        if st > 1:
+                print("Warning: st values greater than 1 would affect simulation accuracy!")        
+                
+                
         
         self.age = patient_characteristic[0]
         self.height = patient_characteristic[1]

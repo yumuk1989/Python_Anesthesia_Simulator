@@ -623,7 +623,7 @@ class CompartmentModel:
         ----------
         u : float
             Infusion rate (mg/s for Propofol, µg/s for Remifentanil and Norepinephrine).
-
+            
         Returns
         -------
         numpy array
