@@ -173,16 +173,16 @@ if __name__ == '__main__':
     plt.ticklabel_format(style='plain')
     plt.show()
     
-    # %%
-    def test_full_sim_results():
-        """Check that the simulations results are not affected by the sampling time and by the simulation method"""
-        # Check results at low concentrations
-        assert max(abs(bis_vector-df_George_2['BIS'])) < 1e-1
-        assert max(abs(map_vector-df_George_2['MAP'])) < 1e-1
-        assert max(abs(co_vector-df_George_2['CO'])) < 1e-1
-        assert max(abs(tol_vector-df_George_2['TOL'])) < 1e-1
+# %%
+def test_full_sim_results():
+    """Check that the simulations results are not affected by the sampling time and by the simulation method"""
+    # Check results at low concentrations
+    assert max(abs(bis_vector-df_George_2['BIS'])) < 1e-1
+    assert max(abs(map_vector-df_George_2['MAP'])) < 1e-1
+    assert max(abs(co_vector-df_George_2['CO'])) < 1e-1
+    assert max(abs(tol_vector-df_George_2['TOL'])) < 1e-1
         
-        assert max(abs(bis_vector-George_3.dataframe['BIS'])) < 1e-1
-        assert max(abs(map_vector-George_3.dataframe['MAP'])) < 1e-1
-        assert max(abs(co_vector-George_3.dataframe['CO'])) < 1e-1
-        assert max(abs(tol_vector-George_3.dataframe['TOL'])) < 1e-1
+    assert max(abs(bis_vector-George_3.dataframe['BIS'])) < 1e-1
+    assert max(abs(map_vector-George_3.dataframe['MAP'])) < 1e-1
+    assert max(abs(co_vector-George_3.dataframe['CO'])) < 1e-1
+    assert max(abs(tol_vector-George_3.dataframe['TOL'])) < 1e-1
