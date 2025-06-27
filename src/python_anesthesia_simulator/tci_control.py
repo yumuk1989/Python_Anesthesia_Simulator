@@ -93,11 +93,11 @@ class TCIController():
         elif gender == 0:  # femme
             lbm = 1.07 * weight - 148 * (weight / height) ** 2
 
-        pk_model = CompartmentModel(patient_info, lbm, drug_name, st=sampling_time, model=model_used)
+        pk_model = CompartmentModel(patient_info, lbm, drug_name, ts=sampling_time, model=model_used)
         self.Ad = pk_model.discretize_sys.A[:4, :4]
         self.Bd = pk_model.discretize_sys.B[:4]
 
-        pk_model = CompartmentModel(patient_info, lbm, drug_name, st=control_time, model=model_used)
+        pk_model = CompartmentModel(patient_info, lbm, drug_name, ts=control_time, model=model_used)
         self.Ad_control = pk_model.discretize_sys.A[:4, :4]
         self.Bd_control = pk_model.discretize_sys.B[:4]
         # find the response to a 10s infusion

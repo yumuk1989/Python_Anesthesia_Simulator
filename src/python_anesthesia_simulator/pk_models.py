@@ -35,8 +35,8 @@ class CompartmentModel:
         "Minto"[Minto1997]_, or "Eleveld"[Eleveld2017]_ for Remifentanil.
         "Beloeil"[Beloeil2005]_, "Oualha"[Oualha2014], or "Li"[Li2024] for Norepinephrine.
         The default is "Schnider" for Propofol, "Minto" for Remifentanil, and Beloeil for Norepinephrine.
-    st : float, optional
-        Simulation step, in s. The default is 0.1.
+    ts : float, optional
+        Sampling time, in s. The default is 1.
     random : bool, optional
         bool to introduce uncertainties in the model. The default is False.
     x0 : np.ndarray, optional
@@ -50,8 +50,8 @@ class CompartmentModel:
 
     Attributes
     ----------
-    st : float
-        Simulation step, in s.
+    ts : float
+        Sampling time, in s.
     drug : str
         can be "Propofol", "Remifentanil" or "Norepinephrine".
     A_init : np.ndarray
@@ -106,11 +106,11 @@ class CompartmentModel:
     """
 
     def __init__(self, Patient_characteristic: list, lbm: float,
-                 drug: str, model: str = None, st: float = 0.1,
+                 drug: str, model: str = None, ts: float = 1,
                  random: bool = False, x0: np.ndarray = None,
                  opiate=True, measurement="arterial"):
         """Init the class."""
-        self.st = st
+        self.ts = ts
         age = Patient_characteristic[0]
         height = Patient_characteristic[1]
         weight = Patient_characteristic[2]
@@ -601,7 +601,7 @@ class CompartmentModel:
         # Continuous system with blood concentration as output
         self.continuous_sys = control.ss(A, B, C, D)
         # Discretization of the system
-        self.discretize_sys = self.continuous_sys.sample(self.st)
+        self.discretize_sys = self.continuous_sys.sample(self.ts)
 
         # init output
         if x0 is None:
@@ -611,7 +611,7 @@ class CompartmentModel:
         self.x = x0
         self.y = np.dot(C, self.x)
 
-        self.u_buffer = np.zeros(int(np.round(self.u_lag / self.st))+1)
+        self.u_buffer = np.zeros(int(np.round(self.u_lag / self.ts))+1)
 
     def one_step(self, u: float) -> list:
         """Simulate one step of PK model.
@@ -640,15 +640,13 @@ class CompartmentModel:
             self.input = self.u_buffer[0] + self.u_endo
         return self.y
 
-    def full_sim(self, u: np.ndarray, ts: float, x0: Optional[np.ndarray] = None) -> list:
+    def full_sim(self, u: np.ndarray, x0: Optional[np.ndarray] = None) -> list:
         """ Simulate PK model with a given input.
 
         Parameters
         ----------
         u : list
             Infusion rate (mg/s for Propofol, µg/s for Remifentanil and Norepinephrine).
-        ts : float
-            Sampling time of the infusion rate
         x0 : numpy array, optional
             Initial state. The default is None.
 
@@ -659,12 +657,8 @@ class CompartmentModel:
             (µg/mL for Propofol and ng/mL for Remifentanil and Norepinephrine).
 
         """
-        if not (ts/self.st).is_integer():
-                raise ValueError("ts must be an integer multiple of st")
-        factor = int(ts / self.st)
-        u = np.repeat(u, factor)
-        u = np.roll(u, int(np.round(self.u_lag / self.st)))
-        u[:int(np.round(self.u_lag / self.st))] = 0
+        u = np.roll(u, int(np.round(self.u_lag / self.ts)))
+        u[:int(np.round(self.u_lag / self.ts))] = 0
         if x0 is None:
             x0 = np.zeros(len(self.A_init))
             if self.model == 'Oualha':
@@ -673,7 +667,7 @@ class CompartmentModel:
             elif self.model == 'Li':
                 cl1 = (- self.continuous_sys.A[0, 0]*60 - self._k12)*self.v1
                 x0 = np.ones(len(self.A_init)) * self.u_endo / cl1 * 60
-        t = np.ones_like(u)*self.st
+        t = np.ones_like(u)*self.ts
         t[0] = 0
         t = np.cumsum(t)
         _, _, x = control.forced_response(
@@ -683,8 +677,6 @@ class CompartmentModel:
             X0=x0,
             return_x=True
         )
-        # Downsample x to the original time scale
-        x = x[:, ::factor]
         return x
 
     def update_param_CO(self, CO_ratio: float):
@@ -709,7 +701,7 @@ class CompartmentModel:
         # Continuous system with blood concentration as output
         self.continuous_sys = control.ss(Anew, self.continuous_sys.B, self.continuous_sys.C, self.continuous_sys.D)
         # Discretization of the system
-        self.discretize_sys = self.continuous_sys.sample(self.st)
+        self.discretize_sys = self.continuous_sys.sample(self.ts)
 
     def update_param_blood_loss(self, v_ratio: float, CO_ratio: float):
         """Update PK coefficient to mimic a blood loss.
@@ -744,7 +736,7 @@ class CompartmentModel:
         # Continuous system with blood concentration as output
         self.continuous_sys = control.ss(Anew, Bnew, self.continuous_sys.C, self.continuous_sys.D)
         # Discretization of the system
-        self.discretize_sys = self.continuous_sys.sample(self.st)
+        self.discretize_sys = self.continuous_sys.sample(self.ts)
 
     def update_Li_model_propo(self, c_prop: float):
         """Update Norpineprhine Li PK model thanks to the concentration of propofol.
@@ -772,4 +764,4 @@ class CompartmentModel:
         # Continuous system with blood concentration as output
         self.continuous_sys = control.ss(Anew, self.continuous_sys.B, self.continuous_sys.C, self.continuous_sys.D)
         # Discretization of the system
-        self.discretize_sys = self.continuous_sys.sample(self.st)
+        self.discretize_sys = self.continuous_sys.sample(self.ts)
