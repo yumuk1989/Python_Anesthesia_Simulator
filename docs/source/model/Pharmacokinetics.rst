@@ -77,11 +77,11 @@ Multiple studies have been conducted to estimate the parameters of the PK model 
         \end{pmatrix}
         +
         \begin{pmatrix}
-        \frac{1}{V_1} \\ 0\\ 0
+        1 \\ 0\\ 0
         \end{pmatrix}
         u(t)
 
-    where :math:`m_i` for :math:`i \in \{1,2,3\}` are the mass of drug in each compartment. Note that both models are equivalent.
+    where :math:`m_i` for :math:`i \in \{1,2,3\}` are the mass of drug in each compartment and blood concentration is given by :math:`\frac{m_1(t)}{V_1}`. Note that both models are equivalent.
 
 
 Norepinephrine
@@ -96,14 +96,14 @@ For this drug, there is less studies focused on modelling, and the model structu
 In Beloeil2005_, the authors have proposed a single compartment model given by the following equation to model the PK of norepineprhine in shocked adult patients:
 
 .. math::
-    \dot{x}(t) = \frac{Cl}{V} x(t) + \frac{1}{V} u(t)
+    \dot{x}(t) = -\frac{Cl}{V} x(t) + \frac{1}{V} u(t)
 
 where :math:`V` and :math:`Cl` are, respectively, the volume and the clearance rate of the single compartment. :math:`x(t)` is directly the blood concentration of norepinephrine.
 
 In Oualha2014_, the focused was one shock child patient and the endogenous production is also considered in the model:
 
 .. math::
-    \dot{x}(t) = \frac{Cl}{V} x(t) + \frac{1}{V} (u_{endo} + u(t))
+    \dot{x}(t) = -\frac{Cl}{V} x(t) + \frac{1}{V} (u_{endo} + u(t))
 
 In Li2024_, the authors studied healthy patient and considered a two compartments model with endogenous production and a delayed input:
 
