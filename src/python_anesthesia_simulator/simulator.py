@@ -29,8 +29,15 @@ class Patient:
         Name of the Remifentanil PK Model. The default is 'Minto'.
     model_nore : str, optional
         Name of the norepinephrine PK Model. The default is 'Beloeil'.
+    st : float, optional
+        Simulation step (s). The default is 0.1.  
+        Smaller values improve the accuracy of the simulation.
+        Bigger values reduce the computational load but values greater than 1 would affect simulation accuracy.
     ts : float, optional
         Sampling time (s). The default is 1.
+        It must be grater or equal to st.
+        It must be a multiple of st.
+        Set it equal to st to simulate a continuous time system.
     BIS_param : list, optional
         Parameter of the BIS model (Propo Remi interaction)
         list [C50p_BIS, C50r_BIS, gamma_BIS, beta_BIS, E0_BIS, Emax_BIS].
@@ -111,6 +118,8 @@ class Patient:
         Standard deviation of the CO noise.
     map_noise_std : float
         Standard deviation of the MAP noise.
+    st : float
+        Simulation step used to simulate the PK models
 
 
     """
@@ -124,6 +133,7 @@ class Patient:
                  model_remi: str = 'Minto',
                  model_nore: str = 'Beloeil',
                  model_bis: str = 'Bouillon',
+                 st: float = 0.1,
                  ts: float = 1,
                  hill_param: list = None,
                  random_PK: bool = False,
@@ -138,6 +148,16 @@ class Patient:
         None.
 
         """
+        
+        if ts < st:
+                raise ValueError("ts must be graeter or equal to st")
+        if not (ts/st).is_integer():
+                raise ValueError("ts must be an integer multiple of st")
+        if st > 1:
+                print("Warning: st values greater than 1 would affect simulation accuracy!")        
+                
+                
+        
         self.age = patient_characteristic[0]
         self.height = patient_characteristic[1]
         self.weight = patient_characteristic[2]
@@ -145,6 +165,7 @@ class Patient:
         self.co_base = co_base
         self.hr_base = hr_base
         self.map_base = map_base
+        self.st = st
         self.ts = ts
         self.model_propo = model_propo
         self.model_remi = model_remi
@@ -155,6 +176,7 @@ class Patient:
         self.co_update = co_update
         self.save_data_bool = save_data_bool
 
+
         # LBM computation
         if self.gender == 1:  # homme
             self.lbm = 1.1 * self.weight - 128 * (self.weight / self.height) ** 2
@@ -162,32 +184,15 @@ class Patient:
             self.lbm = 1.07 * self.weight - 148 * (self.weight / self.height) ** 2
 
         # Init PK models for all drugs
-        self.propo_pk = CompartmentModel(
-            patient_characteristic,
-            self.lbm,
-            drug="Propofol",
-            ts=self.ts,
-            model=model_propo,
-            random=random_PK
-        )
+        self.propo_pk = CompartmentModel(patient_characteristic, self.lbm, drug="Propofol",
+                                         st=self.st, model=model_propo, random=random_PK)
 
-        self.remi_pk = CompartmentModel(
-            patient_characteristic,
-            self.lbm,
-            drug="Remifentanil",
-            ts=self.ts,
-            model=model_remi,
-            random=random_PK
-        )
+        self.remi_pk = CompartmentModel(patient_characteristic, self.lbm, drug="Remifentanil",
+                                        st=self.st, model=model_remi, random=random_PK)
 
-        self.nore_pk = CompartmentModel(
-            patient_characteristic,
-            self.lbm,
-            drug="Norepinephrine",
-            ts=self.ts,
-            model=model_nore,
-            random=random_PK
-        )
+        self.nore_pk = CompartmentModel(patient_characteristic, self.lbm, drug="Norepinephrine",
+                                        st=self.st, model=model_nore, random=random_PK)
+
 
         # Init PD model for BIS
         self.bis_pd = BIS_model(hill_model=model_bis, hill_param=hill_param, random=random_PD)
@@ -281,9 +286,11 @@ class Patient:
             self.blood_loss(blood_rate)
 
         # compute PK model
-        self.c_es_propo = self.propo_pk.one_step(u_propo)
-        self.c_es_remi = self.remi_pk.one_step(u_remi)
-        self.c_blood_nore = self.nore_pk.one_step(u_nore)
+        N_sim = int(self.ts/self.st)
+        for k in range(N_sim):
+            self.c_es_propo = self.propo_pk.one_step(u_propo)
+            self.c_es_remi = self.remi_pk.one_step(u_remi)
+            self.c_blood_nore = self.nore_pk.one_step(u_nore)
         # BIS
         self.bis = self.bis_pd.compute_bis(self.c_es_propo, self.c_es_remi)
         # TOL
@@ -637,7 +644,6 @@ class Patient:
 
     def init_dataframe(self):
         r"""Initilize the dataframe variable with the following columns:
-
             - 'Time': Simulation time (s)
             - 'BIS': Bispectral Index
             - 'TOL': Tolerance level
@@ -709,7 +715,7 @@ class Patient:
         ------------
         - At least one of `u_propo`, `u_remi`, or `u_nore` must be provided.
         - All input arrays (`u_propo`, `u_remi`, `u_nore`) must have the same length.
-            If any of them is not provided, the others will be automatically filled with zeros to match the length of the others.
+          If any of them is not provided, it will be automatically filled with zeros to match the length of the others.
         - The simulation duration is determined by the length of the input arrays.
 
         Returns
@@ -742,9 +748,9 @@ class Patient:
         self.init_dataframe()
 
         # simulate
-        x_propo = self.propo_pk.full_sim(u_propo, x0_propo)
-        x_remi = self.remi_pk.full_sim(u_remi, x0_remi)
-        x_nore = self.nore_pk.full_sim(u_nore, x0_nore)
+        x_propo = self.propo_pk.full_sim(u_propo, self.ts, x0_propo)
+        x_remi = self.remi_pk.full_sim(u_remi, self.ts, x0_remi)
+        x_nore = self.nore_pk.full_sim(u_nore, self.ts, x0_nore)
 
         # compute outputs
         bis = self.bis_pd.compute_bis(x_propo[3, :], x_remi[3, :])

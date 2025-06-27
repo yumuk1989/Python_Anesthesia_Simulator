@@ -9,7 +9,7 @@ weight = 65
 sex = 0
 
 # define true systems
-sampling_time = 1
+sampling_time = 0.1
 
 
 # Beloeil model
@@ -57,52 +57,55 @@ beloeil_pk_pas = CompartmentModel(
     lbm=None,
     drug='Norepinephrine',
     model='Beloeil',
-    ts=sampling_time,
+    st=sampling_time,
 )
 oualha_pk_pas = CompartmentModel(
     [age, height, weight, sex],
     lbm=None,
     drug='Norepinephrine',
     model='Oualha',
-    ts=sampling_time,
+    st=sampling_time,
 )
 li_pk_pas = CompartmentModel(
     [age, height, weight, sex],
     lbm=None,
     drug='Norepinephrine',
     model='Li',
-    ts=sampling_time,
+    st=sampling_time,
 )
 
 # dirach test
 N_simu = int(10*60 // sampling_time)  # 20 minutes
+N_dirac = int(20 // sampling_time)
 u_nore = np.zeros(N_simu)
 
-u_nore[:20] = 2  # dirach at time 0
+u_nore[:N_dirac] = 2  # dirach at time 0
 
-t = np.arange(0, N_simu).astype(float)
-
+#t = np.arange(0, N_simu).astype(float)
+t = np.ones_like(u_nore)*sampling_time
+t[0] = 0
+t = np.cumsum(t)
 
 beloeil_out = control.forced_response(beloeil_pk_true, T=t, U=u_nore)
 oulha_out = control.forced_response(oulha_pk_true, T=t, U=u_nore + u_endo_oualha, X0=x0_oulha)
 li_out = control.forced_response(li_pk_true, T=t, U=u_nore + u_endo_li, X0=x0_li)
 li_out.y[0] = np.roll(li_out.y[0], int(np.round(Tlag_li/sampling_time)))
-li_out.y[0, :int(np.round(Tlag_li))] = u_endo_li / Clp
+li_out.y[0, :int(np.round(Tlag_li/sampling_time))] = u_endo_li / Clp
 
-y_beloeil = beloeil_pk_pas.full_sim(u_nore)
+y_beloeil = beloeil_pk_pas.full_sim(u_nore,sampling_time)
 y_beloeil = y_beloeil[0, :]
-y_oualha = oualha_pk_pas.full_sim(u_nore)
+y_oualha = oualha_pk_pas.full_sim(u_nore,sampling_time)
 y_oualha = y_oualha[0, :]
-x_li = li_pk_pas.full_sim(u_nore)
+x_li = li_pk_pas.full_sim(u_nore,sampling_time)
 y_li = x_li[0, :]
 if __name__ == '__main__':
-    plt.plot(t*sampling_time, beloeil_out.y[0], 'r', label='Beloeil')
-    plt.plot(t*sampling_time, oulha_out.y[0], 'g', label='Oulha')
-    plt.plot(t*sampling_time, li_out.y[0], 'b', label='Li', )
+    plt.plot(t, beloeil_out.y[0], 'r', label='Beloeil')
+    plt.plot(t, oulha_out.y[0], 'g', label='Oulha')
+    plt.plot(t, li_out.y[0], 'b', label='Li', )
 
-    plt.plot(t*sampling_time, y_beloeil, 'r--', label='Beloeil PAS')
-    plt.plot(t*sampling_time, y_oualha, 'g--', label='Oualha PAS')
-    plt.plot(t*sampling_time, y_li, 'b--', label='Li PAS')
+    plt.plot(t, y_beloeil, 'r--', label='Beloeil PAS')
+    plt.plot(t, y_oualha, 'g--', label='Oualha PAS')
+    plt.plot(t, y_li, 'b--', label='Li PAS')
     plt.xlabel('Time (s)')
     plt.ylabel('Concentration (µg/L)')
     plt.legend()
@@ -118,27 +121,27 @@ def test_dirach_response():
     assert np.allclose(li_out.y[0], y_li)
 
 
-sampling_time = 1
+sampling_time = 0.1
 beloeil_pk_pas = CompartmentModel(
     [age, height, weight, sex],
     lbm=None,
     drug='Norepinephrine',
     model='Beloeil',
-    ts=sampling_time,
+    st=sampling_time,
 )
 oualha_pk_pas = CompartmentModel(
     [age, height, weight, sex],
     lbm=None,
     drug='Norepinephrine',
     model='Oualha',
-    ts=sampling_time,
+    st=sampling_time,
 )
 li_pk_pas = CompartmentModel(
     [age, height, weight, sex],
     lbm=None,
     drug='Norepinephrine',
     model='Li',
-    ts=sampling_time,
+    st=sampling_time,
 )
 
 
@@ -146,12 +149,15 @@ li_pk_pas = CompartmentModel(
 N_simu = int(30*60 // sampling_time)  # 20 minutes
 u_nore = np.ones(N_simu)*0.1
 
-t = np.arange(0, N_simu)
+#t = np.arange(0, N_simu)
+t = np.ones_like(u_nore)*sampling_time
+t[0] = 0
+t = np.cumsum(t)
 beloeil_out = control.forced_response(beloeil_pk_true, T=t, U=u_nore)
 oulha_out = control.forced_response(oulha_pk_true, T=t, U=u_nore + u_endo_oualha, X0=x0_oulha)
 li_out = control.forced_response(li_pk_true, T=t, U=u_nore + u_endo_li, X0=x0_li)
-li_out.y[0] = np.roll(li_out.y[0], int(np.round(Tlag_li)))
-li_out.y[0, :int(np.round(Tlag_li))] = u_endo_li / Clp
+li_out.y[0] = np.roll(li_out.y[0], int(np.round(Tlag_li/sampling_time)))
+li_out.y[0, :int(np.round(Tlag_li/sampling_time))] = u_endo_li / Clp
 
 y_beloeil = np.zeros(N_simu)
 y_oualha = np.zeros(N_simu)
