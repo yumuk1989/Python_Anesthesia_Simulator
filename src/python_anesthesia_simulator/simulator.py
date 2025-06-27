@@ -7,7 +7,7 @@ import pandas as pd
 import casadi as cas
 # Local imports
 from .pk_models import CompartmentModel
-from .pd_models import BIS_model, TOL_model, Hemo_PD_model
+from .pd_models import BIS_model, TOL_model, Hemo_simple_PD_model, Hemo_meca_PD_model
 
 
 class Patient:
@@ -19,6 +19,8 @@ class Patient:
         Patient_characteristic = [age (yr), height(cm), weight(kg), gender(0: female, 1: male)]
     co_base : float, optional
         Initial cardiac output. The default is 6.5L/min.
+    hr_base : float, optional
+        Initial heart rate. The default is 60 beat/min.
     map_base : float, optional
         Initial Mean Arterial Pressure. The default is 90mmHg.
     model_propo : str, optional
@@ -116,6 +118,7 @@ class Patient:
     def __init__(self,
                  patient_characteristic: list,
                  co_base: float = 6.5,
+                 hr_base: float = 60,
                  map_base: float = 90,
                  model_propo: str = 'Schnider',
                  model_remi: str = 'Minto',
@@ -140,6 +143,7 @@ class Patient:
         self.weight = patient_characteristic[2]
         self.gender = patient_characteristic[3]
         self.co_base = co_base
+        self.hr_base = hr_base
         self.map_base = map_base
         self.ts = ts
         self.model_propo = model_propo
@@ -158,14 +162,32 @@ class Patient:
             self.lbm = 1.07 * self.weight - 148 * (self.weight / self.height) ** 2
 
         # Init PK models for all drugs
-        self.propo_pk = CompartmentModel(patient_characteristic, self.lbm, drug="Propofol",
-                                         ts=self.ts, model=model_propo, random=random_PK)
+        self.propo_pk = CompartmentModel(
+            patient_characteristic,
+            self.lbm,
+            drug="Propofol",
+            ts=self.ts,
+            model=model_propo,
+            random=random_PK
+        )
 
-        self.remi_pk = CompartmentModel(patient_characteristic, self.lbm, drug="Remifentanil",
-                                        ts=self.ts, model=model_remi, random=random_PK)
+        self.remi_pk = CompartmentModel(
+            patient_characteristic,
+            self.lbm,
+            drug="Remifentanil",
+            ts=self.ts,
+            model=model_remi,
+            random=random_PK
+        )
 
-        self.nore_pk = CompartmentModel(patient_characteristic, self.lbm, drug="Norepinephrine",
-                                        ts=self.ts, model=model_nore, random=random_PK)
+        self.nore_pk = CompartmentModel(
+            patient_characteristic,
+            self.lbm,
+            drug="Norepinephrine",
+            ts=self.ts,
+            model=model_nore,
+            random=random_PK
+        )
 
         # Init PD model for BIS
         self.bis_pd = BIS_model(hill_model=model_bis, hill_param=hill_param, random=random_PD)
@@ -175,7 +197,14 @@ class Patient:
         self.tol_pd = TOL_model(model='Bouillon', random=random_PD)
 
         # Init PD model for Hemodynamic
-        self.hemo_pd = Hemo_PD_model(random=random_PD, co_base=co_base, map_base=map_base)
+        self.hemo_pd = Hemo_meca_PD_model(
+            age=self.age,
+            ts=self.ts,
+            random=random_PD,
+            hr_base=hr_base,
+            sv_base=co_base / hr_base * 1000,  # L to ml
+            map_base=map_base
+        )
 
         # init blood loss volume
         self.blood_volume = self.propo_pk.v1
@@ -197,6 +226,9 @@ class Patient:
         # Init all the output variable
         self.bis = self.bis_pd.compute_bis(0, 0)
         self.tol = self.tol_pd.compute_tol(0, 0)
+        self.tpr = self.hemo_pd.tpr_base
+        self.sv = self.hemo_pd.abase_sv
+        self.hr = self.hemo_pd.abase_hr
         self.map = map_base
         self.co = co_base
 
@@ -238,6 +270,16 @@ class Patient:
             Tolerance of Laryngoscopy index (0-1).
 
         """
+        # update PK model with CO
+        if self.co_update:
+            self.propo_pk.update_param_CO(self.co/(self.co_base))
+            self.remi_pk.update_param_CO(self.co/(self.co_base))
+            self.nore_pk.update_param_CO(self.co/(self.co_base))
+
+        # blood loss effect
+        if blood_rate != 0 or self.blood_volume != self.blood_volume_init:
+            self.blood_loss(blood_rate)
+
         # compute PK model
         self.c_es_propo = self.propo_pk.one_step(u_propo)
         self.c_es_remi = self.remi_pk.one_step(u_remi)
@@ -247,23 +289,22 @@ class Patient:
         # TOL
         self.tol = self.tol_pd.compute_tol(self.c_es_propo, self.c_es_remi)
         # Hemodynamic
-        self.map, self.co = self.hemo_pd.compute_hemo(self.propo_pk.x[4:], self.remi_pk.x[4], self.c_blood_nore)
+        y_hemo = self.hemo_pd.one_step(
+            self.propo_pk.x[0],
+            self.remi_pk.x[0],
+            self.c_blood_nore[0],
+            (self.blood_volume/self.blood_volume_init)
+        )
+        self.tpr = y_hemo[0]
+        self.sv = y_hemo[1]
+        self.hr = y_hemo[2]
+        self.map = y_hemo[3]
+        self.co = y_hemo[4]
+
         # disturbances
         self.bis += dist[0]
         self.map += dist[1]
         self.co += dist[2]
-
-        # blood loss effect
-        if blood_rate != 0 or self.blood_volume != self.blood_volume_init:
-            self.blood_loss(blood_rate)
-            self.map *= self.blood_volume/self.blood_volume_init
-            self.co *= self.blood_volume/self.blood_volume_init
-
-        # update PK model with CO
-        if self.co_update:
-            self.propo_pk.update_param_CO(self.co/self.co_base)
-            self.remi_pk.update_param_CO(self.co/self.co_base)
-            self.nore_pk.update_param_CO(self.co/self.co_base)
 
         # add noise
         if noise:
@@ -358,15 +399,21 @@ class Patient:
 
         # get Norepinephrine rate from MAP target
         # first compute the effect of propofol and remifentanil on MAP
-        map_without_nore, co_without_nore = self.hemo_pd.compute_hemo([self.c_blood_propo_eq, self.c_blood_propo_eq],
-                                                                      self.c_blood_remi_eq, 0)
+        y_hemo = self.hemo_pd.state_at_equilibrium(
+            self.c_blood_propo_eq,
+            self.c_blood_remi_eq,
+            0)
+        map_without_nore = y_hemo[3]
         # Then compute the right nore concentration to meet the MAP target
         wanted_map_effect = map_target - map_without_nore
         self.c_blood_nore_eq = self.hemo_pd.c50_nore_map * (wanted_map_effect /
                                                             (self.hemo_pd.emax_nore_map-wanted_map_effect)
                                                             )**(1/self.hemo_pd.gamma_nore_map)
-        _, self.co_eq = self.hemo_pd.compute_hemo([self.c_blood_propo_eq, self.c_blood_propo_eq],
-                                                  self.c_blood_remi_eq, self.c_blood_nore_eq)
+        y_hemo = self.hemo_pd.state_at_equilibrium(
+            self.c_blood_propo_eq,
+            self.c_blood_remi_eq,
+            self.c_blood_nore_eq)
+        self.co_eq = y_hemo[4]
         # update pharmacokinetics model from co value
         if self.co_update:
             self.propo_pk.update_param_CO(self.co_eq/self.co_base)
@@ -376,6 +423,11 @@ class Patient:
         self.u_propo_eq = self.c_blood_propo_eq / control.dcgain(self.propo_pk.continuous_sys)
         self.u_remi_eq = self.c_blood_remi_eq / control.dcgain(self.remi_pk.continuous_sys)
         self.u_nore_eq = self.c_blood_nore_eq / control.dcgain(self.nore_pk.continuous_sys)
+        if self.co_update:
+            # set it back to normal
+            self.propo_pk.update_param_CO(1)
+            self.remi_pk.update_param_CO(1)
+            self.nore_pk.update_param_CO(1)
 
         return self.u_propo_eq, self.u_remi_eq, self.u_nore_eq
 
@@ -462,6 +514,8 @@ class Patient:
         For each drug, the equilibrium state is computed from the input.
         Then this state is used to intitialze each drug pharmacokinetic model.
 
+        Warning, this option does not work if the `co_update` option is set to True.
+
         Parameters
         ----------
         u_propo : float, optional
@@ -480,19 +534,29 @@ class Patient:
         self.u_remi_eq = u_remi
         self.u_nore_eq = u_nore
 
+        if self.co_update:
+            print(self.co_eq)
+            self.propo_pk.update_param_CO(self.co_eq/self.co_base)
+            self.remi_pk.update_param_CO(self.co_eq/self.co_base)
+            self.nore_pk.update_param_CO(self.co_eq/self.co_base)
+
         self.c_blood_propo_eq = u_propo * control.dcgain(self.propo_pk.continuous_sys)
         self.c_blood_remi_eq = u_remi * control.dcgain(self.remi_pk.continuous_sys)
-        self.c_blood_remi_eq = u_nore * control.dcgain(self.nore_pk.continuous_sys)
+        self.c_blood_nore_eq = u_nore * control.dcgain(self.nore_pk.continuous_sys)
 
         # PK models
-        x_init_propo = np.linalg.solve(-self.propo_pk.continuous_sys.A, self.propo_pk.continuous_sys.B * u_propo)
-        self.propo_pk.x = x_init_propo
+        self.propo_pk.x = np.array([self.c_blood_propo_eq]*len(self.propo_pk.x))
 
-        x_init_remi = np.linalg.solve(-self.remi_pk.continuous_sys.A, self.remi_pk.continuous_sys.B * u_remi)
-        self.remi_pk.x = x_init_remi
+        self.remi_pk.x = np.array([self.c_blood_remi_eq]*len(self.remi_pk.x))
 
-        x_init_nore = np.linalg.solve(-self.nore_pk.continuous_sys.A, self.nore_pk.continuous_sys.B * u_nore)
-        self.nore_pk.x = x_init_nore
+        self.nore_pk.x = np.array([self.c_blood_nore_eq]*len(self.nore_pk.x))
+
+        # PD hemo
+        self.hemo_pd.initialized_at_given_concentration(
+            self.c_blood_propo_eq,
+            self.c_blood_remi_eq,
+            self.c_blood_nore_eq)
+
         if self.save_data_bool:
             self.init_dataframe()
             # recompute output variable
@@ -501,7 +565,13 @@ class Patient:
             # TOL
             self.tol = self.tol_pd.compute_tol(self.propo_pk.x[3], self.remi_pk.x[3])
             # Hemodynamic
-            self.map, self.co = self.hemo_pd.compute_hemo(self.propo_pk.x[4:], self.remi_pk.x[4], self.nore_pk.x[0])
+            y_hemo = self.hemo_pd.one_step(self.propo_pk.x[0], self.remi_pk.x[0], self.nore_pk.x[0])
+            self.tpr = y_hemo[0]
+            self.sv = y_hemo[1]
+            self.hr = y_hemo[2]
+            self.map = y_hemo[3]
+            self.co = y_hemo[4]
+
             self.save_data()
 
     def initialized_at_maintenance(self, bis_target: float, tol_target: float,
@@ -535,6 +605,10 @@ class Patient:
         self.initialized_at_given_input(u_propo=self.u_propo_eq,
                                         u_remi=self.u_remi_eq,
                                         u_nore=self.u_nore_eq)
+        if self.co_update:
+            self.propo_pk.update_param_CO(self.co_eq/self.co_base)
+            self.remi_pk.update_param_CO(self.co_eq/self.co_base)
+            self.nore_pk.update_param_CO(self.co_eq/self.co_base)
         return self.u_propo_eq, self.u_remi_eq, self.u_nore_eq
 
     def blood_loss(self, fluid_rate: float = 0):
@@ -556,34 +630,39 @@ class Patient:
         self.blood_volume += fluid_rate*self.ts
 
         # Update the models
-        self.propo_pk.update_param_blood_loss(self.blood_volume/self.blood_volume_init)
-        self.remi_pk.update_param_blood_loss(self.blood_volume/self.blood_volume_init)
-        self.nore_pk.update_param_blood_loss(self.blood_volume/self.blood_volume_init)
+        self.propo_pk.update_param_blood_loss(self.blood_volume/self.blood_volume_init, self.co/(self.co_base))
+        self.remi_pk.update_param_blood_loss(self.blood_volume/self.blood_volume_init, self.co/(self.co_base))
+        self.nore_pk.update_param_blood_loss(self.blood_volume/self.blood_volume_init, self.co/(self.co_base))
         self.bis_pd.update_param_blood_loss(self.blood_volume/self.blood_volume_init)
 
     def init_dataframe(self):
         r"""Initilize the dataframe variable with the following columns:
-                                                                - 'Time': Simulation time (s)
-                                                                - 'BIS': Bispectral Index
-                                                                - 'TOL': Tolerance level
-                                                                - 'MAP': Mean Arterial Pressure (mmHg)
-                                                                - 'CO': Cardiac Output (L/min)
-                                                                - 'u_propo': Propofol infusion rate (mg/s)
-                                                                - 'u_remi': Remifentanil infusion rate (µg/s)
-                                                                - 'u_nore': Norepinephrine infusion rate (µg/s)
-                                                                - 'x_propo_1' to 'x_propo_6': States of the propofol PK model
-                                                                - 'x_remi_1' to 'x_remi_5': States of the remifentanil PK model
-                                                                - 'x_nore': State of the norepinephrine PK model
-                                                                - 'blood_volume': Blood volume (L)
+
+            - 'Time': Simulation time (s)
+            - 'BIS': Bispectral Index
+            - 'TOL': Tolerance level
+            - 'TPR': Total eripheral resistance (mmHg min/ mL) 
+            - 'SV': Stroke volume (ml)
+            - 'HR': Heart rate (beat/min)
+            - 'MAP': Mean Arterial Pressure (mmHg)
+            - 'CO': Cardiac Output (L/min)
+            - 'u_propo': Propofol infusion rate (mg/s)
+            - 'u_remi': Remifentanil infusion rate (µg/s)
+            - 'u_nore': Norepinephrine infusion rate (µg/s)
+            - 'x_propo_1' to 'x_propo_6': States of the propofol PK model
+            - 'x_remi_1' to 'x_remi_5': States of the remifentanil PK model
+            - 'x_nore': State of the norepinephrine PK model
+            - 'blood_volume': Blood volume (L)
         """
         self.Time = 0
         column_names = ['Time',  # time
                         'BIS', 'TOL', 'MAP', 'CO',  # outputs
                         'u_propo', 'u_remi', 'u_nore',  # inputs
-                        'x_propo_1', 'x_propo_2', 'x_propo_3', 'x_propo_4', 'x_propo_5', 'x_propo_6',  # x_PK_propo
-                        'x_remi_1', 'x_remi_2', 'x_remi_3', 'x_remi_4', 'x_remi_5',  # x_PK_remi
-                        'x_nore', 'blood_volume']  # nore concentration and blood volume
-
+                        'blood_volume']  # nore concentration and blood volume
+        propo_state_names = [f'x_propo_{i+1}' for i in range(len(self.propo_pk.x))]
+        remi_state_names = [f'x_remi_{i+1}' for i in range(len(self.remi_pk.x))]
+        nore_state_names = [f'x_nore_{i+1}' for i in range(len(self.nore_pk.x))]
+        column_names += propo_state_names + remi_state_names + nore_state_names
         self.dataframe = pd.DataFrame(columns=column_names, dtype=float)
 
     def save_data(self, inputs: list = [0, 0, 0]):
@@ -591,22 +670,23 @@ class Patient:
         # store data
 
         new_line = {'Time': self.Time,
-                    'BIS': self.bis, 'TOL': self.tol, 'MAP': self.map, 'CO': self.co,  # outputs
+                    'BIS': self.bis, 'TOL': self.tol, 'TPR': self.tpr,
+                    'SV': self.sv, 'HR': self.hr, 'MAP': self.map, 'CO': self.co,  # outputs
                     'u_propo': inputs[0], 'u_remi': inputs[1], 'u_nore': inputs[2],  # inputs
-                    'x_nore': self.nore_pk.x[0],  # concentration
                     'blood_volume': self.blood_volume}  # blood volume
 
-        line_x_propo = {'x_propo_' + str(i+1): self.propo_pk.x[i] for i in range(6)}
-        line_x_remi = {'x_remi_' + str(i+1): self.remi_pk.x[i] for i in range(5)}
+        line_x_propo = {f'x_propo_{i+1}': self.propo_pk.x[i] for i in range(len(self.propo_pk.x))}
+        line_x_remi = {f'x_remi_{i+1}': self.remi_pk.x[i] for i in range(len(self.remi_pk.x))}
+        line_x_nore = {f'x_nore_{i+1}': self.nore_pk.x[i] for i in range(len(self.nore_pk.x))}
         new_line.update(line_x_propo)
         new_line.update(line_x_remi)
-
+        new_line.update(line_x_nore)
         self.dataframe = pd.concat(
             [df for df in (self.dataframe, pd.DataFrame(new_line, index=[1], dtype=float)) if not df.empty],
             ignore_index=True
         )
 
-    def full_sim(self, u_propo: Optional[np.array] = None, u_remi: Optional[np.array] = None, u_nore: Optional[np.array] = None,
+    def full_sim(self, u_propo: Optional[np.ndarray] = None, u_remi: Optional[np.ndarray] = None, u_nore: Optional[np.ndarray] = None,
                  x0_propo: Optional[np.array] = None, x0_remi: Optional[np.array] = None, x0_nore: Optional[np.array] = None) -> pd.DataFrame:
         r"""Simulates the patient model using the drugs infusions profiles provided as inputs.
 
@@ -626,11 +706,11 @@ class Patient:
             Initial state of the norepinephrine PK model. The default is zeros.
 
         Requirements
-                                                                ------------
-                                                                - At least one of `u_propo`, `u_remi`, or `u_nore` must be provided.
-                                                                - All input arrays (`u_propo`, `u_remi`, `u_nore`) must have the same length.
-                                                                                If any of them is not provided, it will be automatically filled with zeros to match the length of the others.
-                                                                - The simulation duration is determined by the length of the input arrays.
+        ------------
+        - At least one of `u_propo`, `u_remi`, or `u_nore` must be provided.
+        - All input arrays (`u_propo`, `u_remi`, `u_nore`) must have the same length.
+            If any of them is not provided, the others will be automatically filled with zeros to match the length of the others.
+        - The simulation duration is determined by the length of the input arrays.
 
         Returns
         -------
@@ -642,20 +722,20 @@ class Patient:
             raise ValueError('No input given')
         if u_propo is None:
             if u_remi is None:
-                u_propo = [0]*len(u_nore)
+                u_propo = np.zeros_like(u_nore)
             else:
-                u_propo = [0]*len(u_remi)
+                u_propo = np.zeros_like(u_remi)
         if u_remi is None:
             if u_propo is None:
-                u_remi = [0]*len(u_nore)
+                u_remi = np.zeros_like(u_nore)
             else:
-                u_remi = [0]*len(u_propo)
+                u_remi = np.zeros_like(u_propo)
         if u_nore is None:
             if u_propo is None:
-                u_nore = [0]*len(u_remi)
+                u_nore = np.zeros_like(u_remi)
             else:
-                u_nore = [0]*len(u_propo)
-        if not len(u_propo) == len(u_remi) == len(u_nore):
+                u_nore = np.zeros_like(u_propo)
+        if not (len(u_propo) == len(u_remi) and len(u_propo) == len(u_nore)):
             raise ValueError('Inputs must have the same length')
 
         # init the dataframe
@@ -669,17 +749,27 @@ class Patient:
         # compute outputs
         bis = self.bis_pd.compute_bis(x_propo[3, :], x_remi[3, :])
         tol = self.tol_pd.compute_tol(x_propo[3, :], x_remi[3, :])
-        map, co = self.hemo_pd.compute_hemo(x_propo[4:, :], x_remi[4, :], x_nore[0, :])
+        y = self.hemo_pd.full_sim(x_propo[0, :], x_remi[0, :], x_nore[0, :])
+
+        tpr = y[:, 0]
+        sv = y[:, 1]
+        hr = y[:, 2]
+        map = y[:, 3]
+        co = y[:, 4]
 
         # save data
-        df = pd.DataFrame({'Time': np.arange(0, len(u_propo)*self.ts, self.ts),
-                           'BIS': bis, 'TOL': tol, 'MAP': map, 'CO': co,
-                           'u_propo': u_propo, 'u_remi': u_remi, 'u_nore': u_nore})
+        df = pd.DataFrame({
+            'Time': np.arange(0, len(u_propo)*self.ts, self.ts),
+            'BIS': bis, 'TOL': tol, 'TPR': tpr, 'SV': sv,
+            'HR': hr, 'MAP': map, 'CO': co,
+            'u_propo': u_propo, 'u_remi': u_remi, 'u_nore': u_nore
+        })
 
-        for i in range(6):
+        for i in range(np.shape(x_propo)[0]):
             df['x_propo_' + str(i+1)] = x_propo[i, :]
-        for i in range(5):
+        for i in range(np.shape(x_remi)[0]):
             df['x_remi_' + str(i+1)] = x_remi[i, :]
-        df['x_nore'] = x_nore[0, :]
+        for i in range(np.shape(x_nore)[0]):
+            df['x_nore' + str(i+1)] = x_nore[i, :]
 
         return df
