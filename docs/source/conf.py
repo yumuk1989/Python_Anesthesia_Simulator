@@ -47,6 +47,13 @@ autodoc_default_options = {
     'exclude-members': '__init__, __weakref__, __repr__, __str__'
 }
 
+# adding latex packages
+latex_elements = {
+    'preamble': r'''
+        \usepackage{xcolor}
+    ''',
+}
+
 nbsphinx_allow_errors = True  # Continue through Jupyter errors
 
 # Add any paths that contain templates here, relative to this directory.
@@ -68,7 +75,7 @@ html_theme = "furo"
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
-html_static_path = ['_static']
+# html_static_path = ['_static']
 
 # numpydoc configuration
 numpydoc_show_class_members = False

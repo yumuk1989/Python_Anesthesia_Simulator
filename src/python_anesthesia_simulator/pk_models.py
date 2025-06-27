@@ -633,8 +633,11 @@ class CompartmentModel:
         """
         self.u_buffer = np.roll(self.u_buffer, -1)
         self.u_buffer[-1] = u
-        self.x = self.discretize_sys.dynamics(None, self.x, u=self.u_buffer[0]+self.u_endo)  # first input is ignored
-        self.y = self.discretize_sys.output(None, self.x, u=self.u_buffer[0]+self.u_endo)  # first input is ignored
+        self.x = self.discretize_sys.dynamics(None, self.x, u=self.u_buffer[0]+self.u_endo)
+        self.y = self.discretize_sys.output(None, self.x, u=self.u_buffer[0]+self.u_endo)
+        if self.drug == 'Norepinephrine':
+            self.target = control.dcgain(self.discretize_sys)*(self.u_buffer[0]+self.u_endo)
+            self.input = self.u_buffer[0] + self.u_endo
         return self.y
 
     def full_sim(self, u: np.ndarray, ts: float, x0: Optional[np.ndarray] = None) -> list:
@@ -708,7 +711,7 @@ class CompartmentModel:
         # Discretization of the system
         self.discretize_sys = self.continuous_sys.sample(self.st)
 
-    def update_param_blood_loss(self, v_ratio: float):
+    def update_param_blood_loss(self, v_ratio: float, CO_ratio: float):
         """Update PK coefficient to mimic a blood loss.
 
             Update the blood volume compartment
@@ -717,20 +720,25 @@ class CompartmentModel:
         ----------
         v_ratio : float
             blood volume as a fraction of init volume, 1 mean no loss, 0 mean 100% loss.
+        CO_ratio : float
+            Ratio of Current CO relatively to initial CO.
 
         Returns
         -------
         None.
 
         """
-        Bnew = copy.deepcopy(self.B_init)
+        coeff = 1
         Anew = copy.deepcopy(self.A_init)
+        Bnew = copy.deepcopy(self.B_init)
         if self.drug == 'Propofol' or self.drug == 'Remifentanil':
-            Anew[0][0] /= v_ratio
-            Anew[1][0] /= v_ratio
-            Anew[2][0] /= v_ratio
+            Anew[0, 0] /= v_ratio
+            Anew[0, 1] /= v_ratio
+            Anew[0, 2] /= v_ratio
+            Anew[:3, :3] = coeff * Anew[:3, :3] * CO_ratio
         else:
             Anew /= v_ratio
+            Anew = Anew * coeff * CO_ratio
         Bnew /= v_ratio
 
         # Continuous system with blood concentration as output
