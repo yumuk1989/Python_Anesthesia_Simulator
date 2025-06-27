@@ -270,6 +270,12 @@ class Patient:
             Tolerance of Laryngoscopy index (0-1).
 
         """
+        # update PK model with CO
+        if self.co_update:
+            self.propo_pk.update_param_CO(self.co/(self.co_base))
+            self.remi_pk.update_param_CO(self.co/(self.co_base))
+            self.nore_pk.update_param_CO(self.co/(self.co_base))
+
         # blood loss effect
         if blood_rate != 0 or self.blood_volume != self.blood_volume_init:
             self.blood_loss(blood_rate)
@@ -287,7 +293,7 @@ class Patient:
             self.propo_pk.x[0],
             self.remi_pk.x[0],
             self.c_blood_nore[0],
-            self.blood_volume/self.blood_volume_init
+            (self.blood_volume/self.blood_volume_init)
         )
         self.tpr = y_hemo[0]
         self.sv = y_hemo[1]
@@ -299,12 +305,6 @@ class Patient:
         self.bis += dist[0]
         self.map += dist[1]
         self.co += dist[2]
-
-        # update PK model with CO
-        if self.co_update:
-            self.propo_pk.update_param_CO(self.co/(self.co_base - 1))
-            self.remi_pk.update_param_CO(self.co/(self.co_base - 1))
-            self.nore_pk.update_param_CO(self.co/(self.co_base - 1))
 
         # add noise
         if noise:
@@ -630,9 +630,9 @@ class Patient:
         self.blood_volume += fluid_rate*self.ts
 
         # Update the models
-        self.propo_pk.update_param_blood_loss(self.blood_volume/self.blood_volume_init)
-        self.remi_pk.update_param_blood_loss(self.blood_volume/self.blood_volume_init)
-        self.nore_pk.update_param_blood_loss(self.blood_volume/self.blood_volume_init)
+        self.propo_pk.update_param_blood_loss(self.blood_volume/self.blood_volume_init, self.co/(self.co_base))
+        self.remi_pk.update_param_blood_loss(self.blood_volume/self.blood_volume_init, self.co/(self.co_base))
+        self.nore_pk.update_param_blood_loss(self.blood_volume/self.blood_volume_init, self.co/(self.co_base))
         self.bis_pd.update_param_blood_loss(self.blood_volume/self.blood_volume_init)
 
     def init_dataframe(self):
@@ -722,20 +722,20 @@ class Patient:
             raise ValueError('No input given')
         if u_propo is None:
             if u_remi is None:
-                u_propo = [0]*len(u_nore)
+                u_propo = np.zeros_like(u_nore)
             else:
-                u_propo = [0]*len(u_remi)
+                u_propo = np.zeros_like(u_remi)
         if u_remi is None:
             if u_propo is None:
-                u_remi = [0]*len(u_nore)
+                u_remi = np.zeros_like(u_nore)
             else:
-                u_remi = [0]*len(u_propo)
+                u_remi = np.zeros_like(u_propo)
         if u_nore is None:
             if u_propo is None:
-                u_nore = [0]*len(u_remi)
+                u_nore = np.zeros_like(u_remi)
             else:
-                u_nore = [0]*len(u_propo)
-        if not len(u_propo) == len(u_remi) == len(u_nore):
+                u_nore = np.zeros_like(u_propo)
+        if not (len(u_propo) == len(u_remi) and len(u_propo) == len(u_nore)):
             raise ValueError('Inputs must have the same length')
 
         # init the dataframe
@@ -749,7 +749,7 @@ class Patient:
         # compute outputs
         bis = self.bis_pd.compute_bis(x_propo[3, :], x_remi[3, :])
         tol = self.tol_pd.compute_tol(x_propo[3, :], x_remi[3, :])
-        y = self.hemo_pd.full_sim(x_propo[4:, :], x_remi[4, :], x_nore[0, :])
+        y = self.hemo_pd.full_sim(x_propo[0, :], x_remi[0, :], x_nore[0, :])
 
         tpr = y[:, 0]
         sv = y[:, 1]

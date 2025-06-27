@@ -29,7 +29,7 @@ N_simu = int(120 * 60/ts)
 
 uN = 0
 target_propo = 3.0
-target_remi = 3.5
+target_remi = 2
 blood_loss_rate = 200  # ml/min
 blood_gain_rate = 50  # ml/min
 time_start_bleeding = 61 * 60  # seconds
@@ -52,12 +52,16 @@ for index in range(N_simu):
 
 
 # %% test
+index_start_bleeding = int(time_start_bleeding/ts)
 index_end_bleeding = int(time_end_bleeding/ts)
+index_start_transfusion = int(time_start_transfusion/ts)
 index_end_transfusion = int(time_end_transfusion/ts)
 
 
 def test_bleeding_effect():
-    """if bleeding is not stopped, BIS, MAP and CO should decrease, and TOL should increase."""
+    """if bleeding is not stopped, BIS, MAP and CO should decrease, TOL and drugs concentration should increase."""
+    assert George.dataframe['x_propo_1'][index_start_bleeding] < George.dataframe['x_propo_1'][index_end_bleeding]
+    assert George.dataframe['x_remi_1'][index_start_bleeding] < George.dataframe['x_remi_1'][index_end_bleeding]
     assert George.dataframe['BIS'][0] > George.dataframe['BIS'][index_end_bleeding]
     assert George.dataframe['MAP'][0] > George.dataframe['MAP'][index_end_bleeding]
     assert George.dataframe['CO'][0] > George.dataframe['CO'][index_end_bleeding]
@@ -66,10 +70,10 @@ def test_bleeding_effect():
 
 def test_stop_bleeding_effect():
     """ if transfusion is not stopped, BIS, MAP and CO should increase, and TOL should decrease."""
-    assert George.dataframe['BIS'][index_end_bleeding] < George.dataframe['BIS'][index_end_transfusion]
-    assert George.dataframe['MAP'][index_end_bleeding] < George.dataframe['MAP'][index_end_transfusion]
-    assert George.dataframe['CO'][index_end_bleeding] < George.dataframe['CO'][index_end_transfusion]
-    assert George.dataframe['TOL'][index_end_bleeding] > George.dataframe['TOL'][index_end_transfusion]
+    assert George.dataframe['BIS'][index_start_transfusion] < George.dataframe['BIS'][index_end_transfusion]
+    assert George.dataframe['MAP'][index_start_transfusion] < George.dataframe['MAP'][index_end_transfusion]
+    assert George.dataframe['CO'][index_start_transfusion] < George.dataframe['CO'][index_end_transfusion]
+    assert George.dataframe['TOL'][index_start_transfusion] > George.dataframe['TOL'][index_end_transfusion]
 
 
 # %% plot
@@ -99,19 +103,20 @@ if __name__ == '__main__':
     plt.grid()
     plt.show()
 
-    fig, ax = plt.subplots(5)
+    fig, ax = plt.subplots(5, figsize=(10, 10))
 
-    ax[0].plot(Time, George.dataframe['BIS'])
+    ax[0].plot(Time, George.dataframe['BIS'], label="BIS")
+    ax[0].plot(Time, George.dataframe['TOL']*100, label="TOL (x100)")
+    ax[0].legend()
     ax[1].plot(Time, George.dataframe['MAP'])
     ax[2].plot(Time, George.dataframe['CO'])
-    ax[3].plot(Time, George.dataframe['HR'])
-    ax[3].plot(Time, George.dataframe['SV'])
+    ax[3].plot(Time, George.dataframe['HR'], label="HR")
+    ax[3].plot(Time, George.dataframe['SV'], label="SV")
+    ax[3].legend()
     ax[4].plot(Time, George.dataframe['blood_volume'])
 
-    ax[0].set_ylabel("BIS")
     ax[1].set_ylabel("MAP")
     ax[2].set_ylabel("CO")
-    ax[3].set_ylabel("HR")
     ax[4].set_ylabel("blood volume")
     ax[4].set_xlabel("Time (min)")
     for i in range(5):

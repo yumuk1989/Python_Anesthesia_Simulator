@@ -1016,7 +1016,7 @@ class Hemo_meca_PD_model:
             tpr_dot += (map_wanted - a_map) * self.k_effect
         sv_dot_star = self.k_in_sv * rmap**self.fb * (1 + eff_propo_sv) - self.k_out*sv*(1 - eff_remi_sv)
         if sv_wanted > 0:
-            sv_dot_star += (sv_wanted - a_sv) * self.k_effect*1000
+            sv_dot_star += (sv_wanted - a_sv) * self.k_effect*10000
         hr_dot_star = self.k_in_hr * rmap**self.fb - self.k_out*hr*(1 - eff_remi_hr)
 
         if u[0] > 0:  # apply the time dependant function only if anesthesia as started.
@@ -1180,7 +1180,7 @@ class Hemo_meca_PD_model:
 
         y_output = np.zeros((len(cp_propo), 5))
         for index in range(len(cp_propo)):
-            y_output[index, :] = self.one_step(cp_propo, cp_remi, cp_nore)
+            y_output[index, :] = self.one_step(cp_propo[index], cp_remi[index], cp_nore[index])
 
         return y_output
 
