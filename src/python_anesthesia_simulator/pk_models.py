@@ -5,6 +5,7 @@ from typing import Optional
 # Third party imports
 import numpy as np
 import control
+from scipy.signal import lsim, StateSpace
 
 
 class CompartmentModel:
@@ -600,6 +601,7 @@ class CompartmentModel:
         self.drug = drug
         # Continuous system with blood concentration as output
         self.continuous_sys = control.ss(A, B, C, D)
+        self.continuous_sys_ss = StateSpace(A, B, C, D)
         # Discretization of the system
         self.discretize_sys = self.continuous_sys.sample(self.ts)
 
@@ -640,7 +642,7 @@ class CompartmentModel:
             self.input = self.u_buffer[0] + self.u_endo
         return self.y
 
-    def full_sim(self, u: np.ndarray, x0: Optional[np.ndarray] = None) -> list:
+    def full_sim(self, u: np.ndarray, x0: Optional[np.ndarray] = None, interp=False) -> list:
         """ Simulate PK model with a given input.
 
         Parameters
@@ -649,6 +651,8 @@ class CompartmentModel:
             Infusion rate (mg/s for Propofol, µg/s for Remifentanil and Norepinephrine).
         x0 : numpy array, optional
             Initial state. The default is None.
+        interp : bool, optional
+            Whether to use zero-order-hold (False, the default) or linear (True) interpolation for the input array.
 
         Returns
         -------
@@ -670,13 +674,23 @@ class CompartmentModel:
         t = np.ones_like(u)*self.ts
         t[0] = 0
         t = np.cumsum(t)
-        _, _, x = control.forced_response(
-            self.continuous_sys,
-            T=t,
-            U=u+self.u_endo,
-            X0=x0,
-            return_x=True
-        )
+        if interp:
+            _, _, x = control.forced_response(
+                self.continuous_sys,
+                T=t,
+                U=u+self.u_endo,
+                X0=x0,
+                return_x=True
+                )
+        else:
+            _, _, x_lsim = lsim(
+                self.continuous_sys_ss,
+                T=t,
+                U=u+self.u_endo,
+                X0=x0,
+                interp=False
+                )
+            x = x_lsim.T
         return x
 
     def update_param_CO(self, CO_ratio: float):

@@ -90,9 +90,9 @@ li_out.y[0] = np.roll(li_out.y[0], int(np.round(Tlag_li/sampling_time)))
 li_out.y[0, :int(np.round(Tlag_li))] = u_endo_li / Clp
 
 y_beloeil = beloeil_pk_pas.full_sim(u_nore)
-y_beloeil = y_beloeil[0, :]
+y_beloeil = y_beloeil[:]
 y_oualha = oualha_pk_pas.full_sim(u_nore)
-y_oualha = y_oualha[0, :]
+y_oualha = y_oualha[:]
 x_li = li_pk_pas.full_sim(u_nore)
 y_li = x_li[0, :]
 if __name__ == '__main__':
