@@ -671,7 +671,7 @@ class Patient:
         )
 
     def full_sim(self, u_propo: Optional[np.ndarray] = None, u_remi: Optional[np.ndarray] = None, u_nore: Optional[np.ndarray] = None,
-                 x0_propo: Optional[np.array] = None, x0_remi: Optional[np.array] = None, x0_nore: Optional[np.array] = None) -> pd.DataFrame:
+                 x0_propo: Optional[np.array] = None, x0_remi: Optional[np.array] = None, x0_nore: Optional[np.array] = None, interp=False) -> pd.DataFrame:
         r"""Simulates the patient model using the drugs infusions profiles provided as inputs.
 
         Parameters
@@ -688,6 +688,8 @@ class Patient:
             Initial state of the remifentanil PK model. The default is zeros.
         x0_nore : numpy array, optional
             Initial state of the norepinephrine PK model. The default is zeros.
+        interp : bool, optional
+            Whether to use zero-order-hold (False, the default) or linear (True) interpolation for the input array.    
 
         Requirements
         ------------
@@ -726,14 +728,18 @@ class Patient:
         self.init_dataframe()
 
         # simulate
-        x_propo = self.propo_pk.full_sim(u_propo, x0_propo)
-        x_remi = self.remi_pk.full_sim(u_remi, x0_remi)
-        x_nore = self.nore_pk.full_sim(u_nore, x0_nore)
+        x_propo = self.propo_pk.full_sim(u_propo, x0_propo, interp)
+        x_remi = self.remi_pk.full_sim(u_remi, x0_remi, interp)
+        x_nore = self.nore_pk.full_sim(u_nore, x0_nore, interp)
 
         # compute outputs
         bis = self.bis_pd.compute_bis(x_propo[3, :], x_remi[3, :])
         tol = self.tol_pd.compute_tol(x_propo[3, :], x_remi[3, :])
-        y = self.hemo_pd.full_sim(x_propo[0, :], x_remi[0, :], x_nore[0, :])
+        if x_nore.ndim == 1:
+            y = self.hemo_pd.full_sim(x_propo[0, :], x_remi[0, :], x_nore[:])
+        else:
+            y = self.hemo_pd.full_sim(x_propo[0, :], x_remi[0, :], x_nore[0, :])
+        
 
         tpr = y[:, 0]
         sv = y[:, 1]
@@ -753,7 +759,10 @@ class Patient:
             df['x_propo_' + str(i+1)] = x_propo[i, :]
         for i in range(np.shape(x_remi)[0]):
             df['x_remi_' + str(i+1)] = x_remi[i, :]
-        for i in range(np.shape(x_nore)[0]):
-            df['x_nore' + str(i+1)] = x_nore[i, :]
+        if x_nore.ndim == 1:    
+            df['x_nore'] = x_nore
+        else:
+            for i in range(np.shape(x_nore)[0]):
+                df['x_nore' + str(i+1)] = x_nore[i, :]
 
         return df
