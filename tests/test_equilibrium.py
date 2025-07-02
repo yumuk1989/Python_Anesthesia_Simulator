@@ -42,7 +42,7 @@ for index in range(N_simu):
     if index < N_simu // 5:
         George_1.one_step(u_propo=uP, u_remi=uR, u_nore=uN, noise=False)
         # update the TCI controller with the current state
-        tci_propo.x = np.expand_dims(George_1.propo_pk.x[:4], axis=1)
+        tci_propo.x = George_1.propo_pk.x[:4]
     else:
         u_propo = tci_propo.one_step(c_propo_2)/3600 * 10  # convert to mg/s
         George_1.one_step(u_propo=u_propo, u_remi=uR_2, u_nore=uN_2, noise=False)

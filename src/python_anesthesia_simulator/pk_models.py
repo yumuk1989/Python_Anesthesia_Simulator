@@ -4,7 +4,6 @@ from typing import Optional
 
 # Third party imports
 import numpy as np
-import control
 from scipy.signal import lsim, StateSpace
 
 
@@ -600,16 +599,16 @@ class CompartmentModel:
         self.v1 = v1
         self.drug = drug
         # Continuous system with blood concentration as output
-        self.continuous_sys = control.ss(A, B, C, D)
-        self.continuous_sys_ss = StateSpace(A, B, C, D)
+        # self.continuous_sys = control.ss(A, B, C, D)
+        self.continuous_sys = StateSpace(A, B, C, D)
         # Discretization of the system
-        self.discretize_sys = self.continuous_sys.sample(self.ts)
+        self.discretize_sys = self.continuous_sys.to_discrete(self.ts)
 
         # init output
         if x0 is None:
-            x0 = np.zeros(len(A))  # np.ones(len(A))*1e-3
+            x0 = np.zeros((len(A), 1))  # np.ones(len(A))*1e-3
             if self.model == 'Oualha' or self.model == "Li":
-                x0 = np.ones(len(A)) * self.u_endo / cl1 * 60
+                x0 = np.ones((len(A), 1)) * self.u_endo / cl1 * 60
         self.x = x0
         self.y = np.dot(C, self.x)
 
@@ -625,7 +624,7 @@ class CompartmentModel:
         ----------
         u : float
             Infusion rate (mg/s for Propofol, µg/s for Remifentanil and Norepinephrine).
-        
+
         Returns
         -------
         numpy array
@@ -635,12 +634,10 @@ class CompartmentModel:
         """
         self.u_buffer = np.roll(self.u_buffer, -1)
         self.u_buffer[-1] = u
-        self.x = self.discretize_sys.dynamics(None, self.x, u=self.u_buffer[0]+self.u_endo)
-        self.y = self.discretize_sys.output(None, self.x, u=self.u_buffer[0]+self.u_endo)
-        if self.drug == 'Norepinephrine':
-            self.target = control.dcgain(self.discretize_sys)*(self.u_buffer[0]+self.u_endo)
-            self.input = self.u_buffer[0] + self.u_endo
-        return self.y
+        self.x = self.discretize_sys.A @ self.x + self.discretize_sys.B * (self.u_buffer[0]+self.u_endo)
+        self.y = self.discretize_sys.C @ self.x + self.discretize_sys.D * (self.u_buffer[0]+self.u_endo)
+
+        return self.y[0, 0]
 
     def full_sim(self, u: np.ndarray, x0: Optional[np.ndarray] = None, interp=False) -> list:
         """ Simulate PK model with a given input.
@@ -674,23 +671,14 @@ class CompartmentModel:
         t = np.ones_like(u)*self.ts
         t[0] = 0
         t = np.cumsum(t)
-        if interp:
-            _, _, x = control.forced_response(
-                self.continuous_sys,
-                T=t,
-                U=u+self.u_endo,
-                X0=x0,
-                return_x=True
-                )
-        else:
-            _, _, x_lsim = lsim(
-                self.continuous_sys_ss,
-                T=t,
-                U=u+self.u_endo,
-                X0=x0,
-                interp=False
-                )
-            x = x_lsim.T
+        _, _, x_lsim = lsim(
+            self.continuous_sys,
+            T=t,
+            U=u+self.u_endo,
+            X0=x0,
+            interp=interp
+        )
+        x = x_lsim.T
         return x
 
     def update_param_CO(self, CO_ratio: float):
@@ -713,9 +701,9 @@ class CompartmentModel:
         else:
             Anew = Anew * coeff * CO_ratio
         # Continuous system with blood concentration as output
-        self.continuous_sys = control.ss(Anew, self.continuous_sys.B, self.continuous_sys.C, self.continuous_sys.D)
+        self.continuous_sys = StateSpace(Anew, self.continuous_sys.B, self.continuous_sys.C, self.continuous_sys.D)
         # Discretization of the system
-        self.discretize_sys = self.continuous_sys.sample(self.ts)
+        self.discretize_sys = self.continuous_sys.to_discrete(self.ts)
 
     def update_param_blood_loss(self, v_ratio: float, CO_ratio: float):
         """Update PK coefficient to mimic a blood loss.
@@ -748,9 +736,9 @@ class CompartmentModel:
         Bnew /= v_ratio
 
         # Continuous system with blood concentration as output
-        self.continuous_sys = control.ss(Anew, Bnew, self.continuous_sys.C, self.continuous_sys.D)
+        self.continuous_sys = StateSpace(Anew, Bnew, self.continuous_sys.C, self.continuous_sys.D)
         # Discretization of the system
-        self.discretize_sys = self.continuous_sys.sample(self.ts)
+        self.discretize_sys = self.continuous_sys.to_discrete(self.ts)
 
     def update_Li_model_propo(self, c_prop: float):
         """Update Norpineprhine Li PK model thanks to the concentration of propofol.
@@ -776,6 +764,9 @@ class CompartmentModel:
         Anew[0, 0] = -(cl1_prop/self.v1 + self._k12)/60
 
         # Continuous system with blood concentration as output
-        self.continuous_sys = control.ss(Anew, self.continuous_sys.B, self.continuous_sys.C, self.continuous_sys.D)
+        self.continuous_sys = StateSpace(Anew, self.continuous_sys.B, self.continuous_sys.C, self.continuous_sys.D)
         # Discretization of the system
-        self.discretize_sys = self.continuous_sys.sample(self.ts)
+        self.discretize_sys = self.continuous_sys.to_discrete(self.ts)
+
+    def get_system_gain(self):
+        return (self.continuous_sys.C @ np.linalg.inv(-self.continuous_sys.A) @ self.continuous_sys.B + self.continuous_sys.D)[0, 0]
