@@ -2,9 +2,9 @@
 from typing import Optional
 # Third party imports
 import numpy as np
-import control
 import pandas as pd
 import casadi as cas
+from scipy.signal import dlsim, TransferFunction
 # Local imports
 from .pk_models import CompartmentModel
 from .pd_models import BIS_model, TOL_model, Hemo_simple_PD_model, Hemo_meca_PD_model
@@ -136,9 +136,7 @@ class Patient:
         None.
 
         """
-        
-                
-        
+
         self.age = patient_characteristic[0]
         self.height = patient_characteristic[1]
         self.weight = patient_characteristic[2]
@@ -156,7 +154,6 @@ class Patient:
         self.co_update = co_update
         self.save_data_bool = save_data_bool
 
-
         # LBM computation
         if self.gender == 1:  # homme
             self.lbm = 1.1 * self.weight - 128 * (self.weight / self.height) ** 2
@@ -172,7 +169,6 @@ class Patient:
 
         self.nore_pk = CompartmentModel(patient_characteristic, self.lbm, drug="Norepinephrine",
                                         ts=self.ts, model=model_nore, random=random_PK)
-
 
         # Init PD model for BIS
         self.bis_pd = BIS_model(hill_model=model_bis, hill_param=hill_param, random=random_PD)
@@ -202,10 +198,10 @@ class Patient:
         xi = 0.2
         target_peak_fr = 0.03*2*np.pi
         omega = target_peak_fr/np.sqrt(1-2*xi**2)
-        noise_filter = control.tf([0.1, 1], [1/omega**2, 2*xi/omega, 1])
-        self.noise_filter_d = control.sample_system(noise_filter, self.ts)
+        noise_filter = TransferFunction([0.1, 1], [1/omega**2, 2*xi/omega, 1])
+        self.noise_filter_d = noise_filter.to_discrete(self.ts, method='bilinear')
         white_noise = np.random.normal(0, self.bis_noise_std, 1000)
-        _, self.bis_noise = control.forced_response(self.noise_filter_d, U=white_noise, squeeze=True)
+        _, self.bis_noise = dlsim(self.noise_filter_d, u=white_noise)
         self.noise_index = 0
 
         # Init all the output variable
@@ -275,9 +271,9 @@ class Patient:
         self.tol = self.tol_pd.compute_tol(self.c_es_propo, self.c_es_remi)
         # Hemodynamic
         y_hemo = self.hemo_pd.one_step(
-            self.propo_pk.x[0],
-            self.remi_pk.x[0],
-            self.c_blood_nore[0],
+            self.propo_pk.x[0, 0],
+            self.remi_pk.x[0, 0],
+            self.c_blood_nore,
             (self.blood_volume/self.blood_volume_init)
         )
         self.tpr = y_hemo[0]
@@ -322,7 +318,7 @@ class Patient:
             self.noise_index = 0
             # new list noise
             white_noise = np.random.normal(0, self.bis_noise_std, 1000)
-            _, self.bis_noise = control.forced_response(self.noise_filter_d, U=white_noise, squeeze=True)
+            _, self.bis_noise = dlsim(self.noise_filter_d, u=white_noise)
         self.bis += self.bis_noise[self.noise_index]
         self.bis = np.clip(self.bis, 0, 100)
         # random noise for MAP and CO
@@ -405,9 +401,9 @@ class Patient:
             self.remi_pk.update_param_CO(self.co_eq/self.co_base)
             self.nore_pk.update_param_CO(self.co_eq/self.co_base)
         # get rate input
-        self.u_propo_eq = self.c_blood_propo_eq / control.dcgain(self.propo_pk.continuous_sys)
-        self.u_remi_eq = self.c_blood_remi_eq / control.dcgain(self.remi_pk.continuous_sys)
-        self.u_nore_eq = self.c_blood_nore_eq / control.dcgain(self.nore_pk.continuous_sys)
+        self.u_propo_eq = self.c_blood_propo_eq / self.propo_pk.get_system_gain()
+        self.u_remi_eq = self.c_blood_remi_eq / self.remi_pk.get_system_gain()
+        self.u_nore_eq = self.c_blood_nore_eq / self.nore_pk.get_system_gain()
         if self.co_update:
             # set it back to normal
             self.propo_pk.update_param_CO(1)
@@ -525,16 +521,16 @@ class Patient:
             self.remi_pk.update_param_CO(self.co_eq/self.co_base)
             self.nore_pk.update_param_CO(self.co_eq/self.co_base)
 
-        self.c_blood_propo_eq = u_propo * control.dcgain(self.propo_pk.continuous_sys)
-        self.c_blood_remi_eq = u_remi * control.dcgain(self.remi_pk.continuous_sys)
-        self.c_blood_nore_eq = u_nore * control.dcgain(self.nore_pk.continuous_sys)
+        self.c_blood_propo_eq = u_propo * self.propo_pk.get_system_gain()
+        self.c_blood_remi_eq = u_remi * self.remi_pk.get_system_gain()
+        self.c_blood_nore_eq = u_nore * self.nore_pk.get_system_gain()
 
         # PK models
-        self.propo_pk.x = np.array([self.c_blood_propo_eq]*len(self.propo_pk.x))
+        self.propo_pk.x = np.array([[self.c_blood_propo_eq]*len(self.propo_pk.x)]).T
 
-        self.remi_pk.x = np.array([self.c_blood_remi_eq]*len(self.remi_pk.x))
+        self.remi_pk.x = np.array([[self.c_blood_remi_eq]*len(self.remi_pk.x)]).T
 
-        self.nore_pk.x = np.array([self.c_blood_nore_eq]*len(self.nore_pk.x))
+        self.nore_pk.x = np.array([[self.c_blood_nore_eq]*len(self.nore_pk.x)]).T
 
         # PD hemo
         self.hemo_pd.initialized_at_given_concentration(
@@ -546,11 +542,11 @@ class Patient:
             self.init_dataframe()
             # recompute output variable
             # BIS
-            self.bis = self.bis_pd.compute_bis(self.propo_pk.x[3], self.remi_pk.x[3])
+            self.bis = self.bis_pd.compute_bis(self.propo_pk.x[3, 0], self.remi_pk.x[3, 0])
             # TOL
-            self.tol = self.tol_pd.compute_tol(self.propo_pk.x[3], self.remi_pk.x[3])
+            self.tol = self.tol_pd.compute_tol(self.propo_pk.x[3, 0], self.remi_pk.x[3, 0])
             # Hemodynamic
-            y_hemo = self.hemo_pd.one_step(self.propo_pk.x[0], self.remi_pk.x[0], self.nore_pk.x[0])
+            y_hemo = self.hemo_pd.one_step(self.propo_pk.x[0, 0], self.remi_pk.x[0, 0], self.nore_pk.x[0, 0])
             self.tpr = y_hemo[0]
             self.sv = y_hemo[1]
             self.hr = y_hemo[2]
@@ -659,9 +655,9 @@ class Patient:
                     'u_propo': inputs[0], 'u_remi': inputs[1], 'u_nore': inputs[2],  # inputs
                     'blood_volume': self.blood_volume}  # blood volume
 
-        line_x_propo = {f'x_propo_{i+1}': self.propo_pk.x[i] for i in range(len(self.propo_pk.x))}
-        line_x_remi = {f'x_remi_{i+1}': self.remi_pk.x[i] for i in range(len(self.remi_pk.x))}
-        line_x_nore = {f'x_nore_{i+1}': self.nore_pk.x[i] for i in range(len(self.nore_pk.x))}
+        line_x_propo = {f'x_propo_{i+1}': self.propo_pk.x[i, 0] for i in range(len(self.propo_pk.x))}
+        line_x_remi = {f'x_remi_{i+1}': self.remi_pk.x[i, 0] for i in range(len(self.remi_pk.x))}
+        line_x_nore = {f'x_nore_{i+1}': self.nore_pk.x[i, 0] for i in range(len(self.nore_pk.x))}
         new_line.update(line_x_propo)
         new_line.update(line_x_remi)
         new_line.update(line_x_nore)
@@ -671,7 +667,7 @@ class Patient:
         )
 
     def full_sim(self, u_propo: Optional[np.ndarray] = None, u_remi: Optional[np.ndarray] = None, u_nore: Optional[np.ndarray] = None,
-                 x0_propo: Optional[np.array] = None, x0_remi: Optional[np.array] = None, x0_nore: Optional[np.array] = None) -> pd.DataFrame:
+                 x0_propo: Optional[np.array] = None, x0_remi: Optional[np.array] = None, x0_nore: Optional[np.array] = None, interp=False) -> pd.DataFrame:
         r"""Simulates the patient model using the drugs infusions profiles provided as inputs.
 
         Parameters
@@ -688,6 +684,8 @@ class Patient:
             Initial state of the remifentanil PK model. The default is zeros.
         x0_nore : numpy array, optional
             Initial state of the norepinephrine PK model. The default is zeros.
+        interp : bool, optional
+            Whether to use zero-order-hold (False, the default) or linear (True) interpolation for the input array.    
 
         Requirements
         ------------
@@ -726,14 +724,17 @@ class Patient:
         self.init_dataframe()
 
         # simulate
-        x_propo = self.propo_pk.full_sim(u_propo, x0_propo)
-        x_remi = self.remi_pk.full_sim(u_remi, x0_remi)
-        x_nore = self.nore_pk.full_sim(u_nore, x0_nore)
+        x_propo = self.propo_pk.full_sim(u_propo, x0_propo, interp)
+        x_remi = self.remi_pk.full_sim(u_remi, x0_remi, interp)
+        x_nore = self.nore_pk.full_sim(u_nore, x0_nore, interp)
 
         # compute outputs
         bis = self.bis_pd.compute_bis(x_propo[3, :], x_remi[3, :])
         tol = self.tol_pd.compute_tol(x_propo[3, :], x_remi[3, :])
-        y = self.hemo_pd.full_sim(x_propo[0, :], x_remi[0, :], x_nore[0, :])
+        if x_nore.ndim == 1:
+            y = self.hemo_pd.full_sim(x_propo[0, :], x_remi[0, :], x_nore[:])
+        else:
+            y = self.hemo_pd.full_sim(x_propo[0, :], x_remi[0, :], x_nore[0, :])
 
         tpr = y[:, 0]
         sv = y[:, 1]
@@ -753,7 +754,10 @@ class Patient:
             df['x_propo_' + str(i+1)] = x_propo[i, :]
         for i in range(np.shape(x_remi)[0]):
             df['x_remi_' + str(i+1)] = x_remi[i, :]
-        for i in range(np.shape(x_nore)[0]):
-            df['x_nore' + str(i+1)] = x_nore[i, :]
+        if x_nore.ndim == 1:
+            df['x_nore'] = x_nore
+        else:
+            for i in range(np.shape(x_nore)[0]):
+                df['x_nore' + str(i+1)] = x_nore[i, :]
 
         return df
