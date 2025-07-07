@@ -1,7 +1,5 @@
-import control
 import numpy as np
 import matplotlib.pyplot as plt
-from scipy.linalg import block_diag
 from python_anesthesia_simulator import simulator, disturbances, metrics
 
 ts = 60
@@ -19,20 +17,6 @@ George_2 = simulator.Patient([age, height, weight, gender], ts=ts,
 George_3 = simulator.Patient([age, height, weight, gender], ts=ts,
                              model_propo="Schnider", model_remi="Minto", random_PD=False)
 
-Ap = George_1.propo_pk.continuous_sys.A
-Ar = George_1.remi_pk.continuous_sys.A
-
-Bp = George_1.propo_pk.continuous_sys.B
-Br = George_1.remi_pk.continuous_sys.B
-A_nom = block_diag(Ap, Ar)
-B_nom = block_diag(Bp, Br)
-C = np.array([[1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0]])
-D = np.array([[0, 0]])
-
-continuous_sys = control.ss(A_nom, B_nom, C, D)
-discret_sys = continuous_sys.sample(ts)
-A_nom = discret_sys.A
-B_nom = discret_sys.B
 
 # %% Simulation
 
@@ -42,14 +26,12 @@ N_simu = int(60 * 60/ts)
 uP, uR = 0.13, 0.5
 start_step = 20 * 60
 end_step = 30 * 60
-x = np.zeros((11, N_simu+1))
 # George_1.save_data([0, 0, 0])
 # George_2.save_data([0, 0, 0])
 # George_3.save_data([0, 0, 0])
 for index in range(N_simu):
     Dist_1 = disturbances.compute_disturbances(index*ts, dist_profil='realistic')
     George_1.one_step(uP, uR, dist=Dist_1, noise=False)
-    x[:, index+1] = A_nom @ x[:, index] + B_nom @ np.array([uP, uR])
     Dist_2 = disturbances.compute_disturbances(index*ts, dist_profil='simple')
     George_2.one_step(uP, uR, dist=Dist_2, noise=False)
     Dist_3 = disturbances.compute_disturbances(index*ts, dist_profil='step', start_step=start_step, end_step=end_step)
@@ -59,23 +41,6 @@ for index in range(N_simu):
 
 if __name__ == '__main__':
     Time = George_1.dataframe['Time']/60
-    fig, axs = plt.subplots(11, figsize=(14, 16))
-    for i in range(5):
-        axs[i].plot(George_1.dataframe['x_propo_' + str(i+1)], '-')
-        axs[i].plot(x[i, :], '--')
-        axs[i].set(xlabel='t', ylabel='$xp_' + str(i+1) + '$')
-        plt.grid()
-        axs[i+6].plot(George_1.dataframe['x_remi_' + str(i+1)], '-')
-        axs[i+6].plot(x[i+6, :], '--')
-        axs[i+6].set(xlabel='t', ylabel='$xr_' + str(i+1) + '$')
-        plt.grid()
-
-    axs[5].plot(George_1.dataframe['x_propo_' + str(5+1)], '-')
-    axs[5].plot(x[5, :], '-')
-    axs[5].set(xlabel='t', ylabel='$xp_' + str(5+1) + '$')
-    plt.grid()
-
-    plt.show()
 
     fig, ax = plt.subplots(3)
     ax[0].plot(Time, George_1.dataframe['u_propo'])
@@ -144,19 +109,6 @@ metric_3_new = metrics.new_metrics_maintenance(
 
 
 # %% test
-
-def test_dynamic_simulation():
-    assert np.allclose(George_1.dataframe['x_propo_1'], x[0, :])
-    assert np.allclose(George_1.dataframe['x_propo_2'], x[1, :])
-    assert np.allclose(George_1.dataframe['x_propo_3'], x[2, :])
-    assert np.allclose(George_1.dataframe['x_propo_4'], x[3, :])
-    assert np.allclose(George_1.dataframe['x_propo_5'], x[4, :])
-    assert np.allclose(George_1.dataframe['x_propo_6'], x[5, :])
-    assert np.allclose(George_1.dataframe['x_remi_1'], x[6, :])
-    assert np.allclose(George_1.dataframe['x_remi_2'], x[7, :])
-    assert np.allclose(George_1.dataframe['x_remi_3'], x[8, :])
-    assert np.allclose(George_1.dataframe['x_remi_4'], x[9, :])
-    assert np.allclose(George_1.dataframe['x_remi_5'], x[10, :])
 
 
 def test_metrics():

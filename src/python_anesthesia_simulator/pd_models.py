@@ -1,7 +1,7 @@
 from typing import Optional
 
 import numpy as np
-import control
+from scipy.integrate import solve_ivp
 import casadi as cas
 from matplotlib import pyplot as plt
 from matplotlib import cm
@@ -102,9 +102,9 @@ class BIS_model:
         None.
 
         """
-        
+
         self.hill_model = hill_model
-        
+
         if hill_param is not None:  # Parameter given as an input
             self.c50p = hill_param[0]
             self.c50r = hill_param[1]
@@ -154,36 +154,36 @@ class BIS_model:
             cv_beta = 0
             cv_E0 = 0.04
             cv_Emax = 0.11
-            
+
         elif self.hill_model == 'Eleveld':
-           # [Eleveld2018] D. J. Eleveld, P. Colin, A. R. Absalom, and M. M. R. F. Struys,
-           # “Pharmacokinetic–pharmacodynamic model for propofol for broad application in anaesthesia and sedation”
-           # British Journal of Anaesthesia, vol. 120, no. 5, pp. 942–959, mai 2018, doi:10.1016/j.bja.2018.01.018.
-           
-           age = kwargs.get('age', -1)
-           if age < 0:
-               raise ValueError("Age is missing for the Eleveld PD model for propofol.")
-               
-           # reference patient
-           AGE_ref = 35
-           
-           # function used in the model
-           def faging(x): return np.exp(x * (age - AGE_ref))
+            # [Eleveld2018] D. J. Eleveld, P. Colin, A. R. Absalom, and M. M. R. F. Struys,
+            # “Pharmacokinetic–pharmacodynamic model for propofol for broad application in anaesthesia and sedation”
+            # British Journal of Anaesthesia, vol. 120, no. 5, pp. 942–959, mai 2018, doi:10.1016/j.bja.2018.01.018.
 
-           self.c50p = 3.08*faging(-0.00635)
-           self.c50r = 0
-           self.gamma = 1.89
-           self.beta = 0
-           self.E0 = 93
-           self.Emax = self.E0
+            age = kwargs.get('age', -1)
+            if age < 0:
+                raise ValueError("Age is missing for the Eleveld PD model for propofol.")
 
-           # coefficient of variation
-           cv_c50p = 0.523
-           cv_c50r = 0
-           cv_gamma = 0
-           cv_beta = 0
-           cv_E0 = 0
-           cv_Emax = 0     
+            # reference patient
+            AGE_ref = 35
+
+            # function used in the model
+            def faging(x): return np.exp(x * (age - AGE_ref))
+
+            self.c50p = 3.08*faging(-0.00635)
+            self.c50r = 0
+            self.gamma = 1.89
+            self.beta = 0
+            self.E0 = 93
+            self.Emax = self.E0
+
+            # coefficient of variation
+            cv_c50p = 0.523
+            cv_c50r = 0
+            cv_gamma = 0
+            cv_beta = 0
+            cv_E0 = 0
+            cv_Emax = 0
 
         if random and hill_param is None:
             # estimation of log normal standard deviation
@@ -222,17 +222,17 @@ class BIS_model:
             Bis value.
 
         """
-        
+
         if self.c50r == 0:
             interaction = c_es_propo / self.c50p
 
-            if self.hill_model == 'Eleveld':  
+            if self.hill_model == 'Eleveld':
                 if c_es_propo <= self.c50p:
                     self.gamma = 1.89
                 else:
                     self.gamma = 1.47
-            
-        elif self.c50r != 0: 
+
+        elif self.c50r != 0:
             up = c_es_propo / self.c50p
             ur = c_es_remi / self.c50r
             Phi = up/(up + ur + 1e-6)
@@ -242,7 +242,6 @@ class BIS_model:
         bis = self.E0 - self.Emax * interaction ** self.gamma / (1 + interaction ** self.gamma)
 
         return bis
-
 
     def update_param_blood_loss(self, v_ratio: float):
         """Update PK coefficient to mimic a blood loss.
@@ -283,19 +282,19 @@ class BIS_model:
             Effect site Propofol concentration (µg/mL).
 
         """
-        
+
         if self.c50r == 0:
-            # If the Eleveld model is selected select the slope according to 
+            # If the Eleveld model is selected select the slope according to
             # the value of the BIS. Ce50 is the value at which 50% of the Emax
             # is reached. So I check this condition on the BIS.
-            if self.hill_model == 'Eleveld':  
+            if self.hill_model == 'Eleveld':
                 if BIS >= (self.E0-(self.Emax/2)):
                     self.gamma = 1.89
                 else:
                     self.gamma = 1.47
-                    
+
             cep = self.c50p * ((self.E0-BIS)/(self.Emax-self.E0+BIS))**(1/self.gamma)
-            
+
         elif self.c50r != 0:
             temp = (max(0, self.E0-BIS)/(self.Emax-self.E0+BIS))**(1/self.gamma)
             Yr = c_es_remi / self.c50r
@@ -314,7 +313,7 @@ class BIS_model:
                 cep = real_root*self.c50p
             except Exception as e:
                 print(f'bug: {e}')
-                            
+
         return cep
 
     def plot_surface(self):
@@ -324,7 +323,7 @@ class BIS_model:
             cep = np.linspace(0, 16, 17)
             if self.hill_model == 'Eleveld':
                 bis = np.linspace(0, 16, 17)
-                i = 0;
+                i = 0
                 for value in cep:
                     bis[i] = self.compute_bis(value)
                     i = i+1
@@ -353,8 +352,6 @@ class BIS_model:
             fig.colorbar(surf, shrink=0.5, aspect=8)
             ax.view_init(20, 60, 0)
             plt.show()
-            
-        
 
 
 class TOL_model():
@@ -1014,20 +1011,6 @@ class Hemo_meca_PD_model:
         self.abase_hr = self.hr_base * (1 + self.ltde_hr)
         self.base_map = self.tpr_base * self.abase_sv * self.abase_hr
 
-        def continuous_dynamic_sys(t, x, u, params=None):
-            return self.continuous_dynamic(x, u)
-
-        def output_function_sys(t, x, u, params=None):
-            return self.output_function(x)
-
-        self.hemo_system = control.NonlinearIOSystem(
-            continuous_dynamic_sys,
-            output_function_sys,
-            inputs=4,
-            outputs=5,
-            states=5,
-        )
-
         self.previous_cp_propo = 0
         self.previous_cp_remi = 0
 
@@ -1095,6 +1078,10 @@ class Hemo_meca_PD_model:
 
         return np.array([tpr_dot, sv_dot_star, hr_dot_star, ltde_sv_dot, ltde_hr_dot])
 
+    def continuous_dynamic_sys(self, t, x, u):
+        """ Same as continuous_dynamic but with time as first arguments (for scipy simulation)."""
+        return self.continuous_dynamic(x, u)
+
     def output_function(self, x: np.ndarray) -> np.ndarray:
         """_summary_
 
@@ -1151,62 +1138,47 @@ class Hemo_meca_PD_model:
         v_ratio : float
             blood volume as a fraction of init volume, 1 mean no loss, 0 mean 100% loss, default is 1.
         """
+        c_propo_sim = (self.previous_cp_propo + cp_propo)/2
+        c_remi_sim = (self.previous_cp_remi + cp_remi)/2
         # run computation for model without nore effect and without blood loss
-        results = control.input_output_response(
-            self.hemo_system,
-            T=np.array([0, self.ts]),
-            U=np.array(
-                [[self.previous_cp_propo, cp_propo],
-                 [self.previous_cp_remi, cp_remi],
-                 [0, 0],
-                 [0, 0]]
-            ),
-            X0=self.x,
-            return_x=True,
+        results = solve_ivp(
+            self.continuous_dynamic_sys,
+            t_span=np.array([0, self.ts]),
+            t_eval=np.array([0, self.ts]),
+            y0=self.x,
+            args=([c_propo_sim, c_remi_sim, 0, 0],),
         )
-        self.x = results.x[:, 1]
+        self.x = results.y[:, -1]
 
         if (self.flag_nore_used or cp_nore > 0) and not self.flag_blood_loss:
             if not self.flag_blood_loss:
                 self.flag_nore_used = True
             if v_ratio != 1:
                 print("Warning: norepinephrine effect is not computed with blood loss")
-            map_no_nore = results.y[3, 1]
+            map_no_nore = self.output_function(self.x)[3]
             map_wanted = map_no_nore + self.nore_map_effect(cp_nore)
             # run computation for model with nore effect
-            results_w_nore = control.input_output_response(
-                self.hemo_system,
-                T=np.array([0, self.ts]),
-                U=np.array(
-                    [[self.previous_cp_propo, cp_propo],
-                     [self.previous_cp_remi, cp_remi],
-                     [map_wanted, map_wanted],
-                     [0, 0]]
-                ),
-                X0=self.x_effect,
-                return_x=True,
+            results_w_nore = solve_ivp(
+                self.continuous_dynamic_sys,
+                t_span=np.array([0, self.ts]),
+                y0=self.x_effect,
+                args=([c_propo_sim, c_remi_sim, map_wanted, 0],),
             )
-            self.x_effect = results_w_nore.x[:, 1]
+            self.x_effect = results_w_nore.y[:, -1]
         elif (v_ratio < 1 or self.flag_blood_loss) and not self.flag_nore_used:
             if not self.flag_blood_loss:
                 self.flag_blood_loss = True
             if cp_nore > 0:
                 print("Warning: norepinephrine effect is not computed with blood loss")
-            sv_no_blood_loss = results.y[1, 1]
+            sv_no_blood_loss = self.output_function(self.x)[1]
             sv_wanted = sv_no_blood_loss*v_ratio
-            results_blood_loss = control.input_output_response(
-                self.hemo_system,
-                T=np.array([0, self.ts]),
-                U=np.array(
-                    [[self.previous_cp_propo, cp_propo],
-                     [self.previous_cp_remi, cp_remi],
-                     [0, 0],
-                     [sv_wanted, sv_wanted]]
-                ),
-                X0=self.x_effect,
-                return_x=True,
+            results_blood_loss = solve_ivp(
+                self.continuous_dynamic_sys,
+                t_span=np.array([0, self.ts]),
+                y0=self.x_effect,
+                args=([c_propo_sim, c_remi_sim, 0, sv_wanted],),
             )
-            self.x_effect = results_blood_loss.x[:, 1]
+            self.x_effect = results_blood_loss.y[:, -1]
         else:
             self.x_effect = self.x.copy()
 
