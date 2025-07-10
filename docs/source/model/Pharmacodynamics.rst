@@ -65,7 +65,9 @@ In those equations, :math:`x_{ep,BIS}` and :math:`x_{er,BIS}` are the propofol a
 
     I(t) = I_p(t) + I_r(t) + \beta I_p(t) I_r(t)
 
-Few studies have been conducted on the pharmacodynamic part of the anesthesia process, and the models are less standardized. In this simulator, the values of the parameters of the Minto-type surface model are taken from the study of Bouillon2004_. Additionally, the values of the parameters of the Greco-type surface model are taken from the studies of Fuentes2018_, Kern2004_, Mertens2003_, Johnson2008_, and Yumuk2024_. It is important to note that these parameters do not take into account the synergistic effect of remifentanil. In particular, the interaction coefficient :math:`\beta` and the half-effect concentration :math:`C_{50r}` for remifentanil are ignored, as suggested in Vanluchene2004_ and Eleveld2018_.
+Few studies have been conducted on the pharmacodynamic part of the anesthesia process, and the models are less standardized. In this simulator, the values of the parameters of the Minto-type surface model are taken from the study of Bouillon2004_. Additionally, the values of the parameters of the Greco-type surface model are taken from the studies of Fuentes2018_, Kern2004_, Mertens2003_, Johnson2008_, and Yumuk2024_. 
+
+It also exists models that do not take into account the synergistic effect of remifentanil, see Vanluchene2004_ and Eleveld2018_ for instance. In those cases, the interaction coefficient :math:\beta and the half-effect concentration :math:C_{50r} for remifentanil are ignored.
 
 The surface of the 3D-Hill function using parameters from Bouillon2004_ is shown in the figure below.
 
